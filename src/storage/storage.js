@@ -67,12 +67,25 @@ export async function saveMeal(mealEntry) {
 }
 
 export async function deleteMeal(date, mealType) {
-  const raw = await AsyncStorage.getItem(MEALS_KEY);
-  const data = raw ? JSON.parse(raw) : {};
-  if (data[date] && data[date][mealType]) {
-    delete data[date][mealType];
+  try {
+    const raw = await AsyncStorage.getItem(MEALS_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    
+    if (data[date] && data[date][mealType]) {
+      delete data[date][mealType];
+      
+      // Si no quedan comidas en ese día, eliminar el día también (opcional)
+      if (Object.keys(data[date]).length === 0) {
+        delete data[date];
+      }
+    }
+    
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error('Error deleting meal:', error);
+    throw error;
   }
-  await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
 }
 
 // Pantry: array of { name, amount, unit }

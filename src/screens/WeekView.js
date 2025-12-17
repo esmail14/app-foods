@@ -60,18 +60,24 @@ export default function WeekView({ navigation }) {
     
     Alert.alert(
       '🗑️ Eliminar comida',
-      `¿Eliminar "${selectedMeal.meal.recipeName}"?`,
+      `¿Eliminar "${selectedMeal.meal.recipeName}" de esta fecha?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cancelar', onPress: () => {}, style: 'cancel' },
         {
           text: 'Eliminar',
-          style: 'destructive',
           onPress: async () => {
-            await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
-            setShowOptionsModal(false);
-            setSelectedMeal(null);
-            load();
-          }
+            try {
+              await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
+              setShowOptionsModal(false);
+              setSelectedMeal(null);
+              await load();
+              Alert.alert('✅ Eliminado', 'La comida ha sido eliminada correctamente');
+            } catch (error) {
+              Alert.alert('❌ Error', 'No se pudo eliminar la comida');
+              console.error('Error deleting meal:', error);
+            }
+          },
+          style: 'destructive'
         }
       ]
     );
