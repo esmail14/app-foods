@@ -1,15 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function MealCell({ meal, onPress, onLongPress }) {
   const hasRecipe = !!meal?.recipeName;
+  const [pressTimeout, setPressTimeout] = useState(null);
+
+  const handlePressIn = () => {
+    if (hasRecipe && onLongPress) {
+      const timeout = setTimeout(() => {
+        onLongPress();
+      }, 500);
+      setPressTimeout(timeout);
+    }
+  };
+
+  const handlePressOut = () => {
+    if (pressTimeout) {
+      clearTimeout(pressTimeout);
+      setPressTimeout(null);
+    }
+  };
 
   return (
     <TouchableOpacity 
       onPress={onPress} 
-      onLongPress={onLongPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       style={[styles.cell, hasRecipe && styles.cellAssigned]}
-      delayLongPress={300}
     >
       <View style={styles.content}>
         <View style={styles.textContainer}>

@@ -19,6 +19,7 @@ export default function WeekView({ navigation }) {
   const [mealsByDate, setMealsByDate] = useState({});
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const focused = useIsFocused();
 
   useEffect(() => {
@@ -57,30 +58,21 @@ export default function WeekView({ navigation }) {
 
   async function handleDeleteMeal() {
     if (!selectedMeal) return;
-    
-    Alert.alert(
-      '🗑️ Eliminar comida',
-      `¿Eliminar "${selectedMeal.meal.recipeName}" de esta fecha?`,
-      [
-        { text: 'Cancelar', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Eliminar',
-          onPress: async () => {
-            try {
-              await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
-              setShowOptionsModal(false);
-              setSelectedMeal(null);
-              await load();
-              Alert.alert('✅ Eliminado', 'La comida ha sido eliminada correctamente');
-            } catch (error) {
-              Alert.alert('❌ Error', 'No se pudo eliminar la comida');
-              console.error('Error deleting meal:', error);
-            }
-          },
-          style: 'destructive'
-        }
-      ]
-    );
+    setShowOptionsModal(false);
+    setShowConfirmDelete(true);
+  }
+
+  async function confirmDelete() {
+    if (!selectedMeal) return;
+    try {
+      await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
+      setShowConfirmDelete(false);
+      setSelectedMeal(null);
+      await load();
+    } catch (error) {
+      console.error('Error deleting meal:', error);
+      Alert.alert('❌ Error', 'No se pudo eliminar la comida');
+    }
   }
 
   function handleEditMeal() {
@@ -162,6 +154,40 @@ export default function WeekView({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de confirmación para eliminar */}
+      <Modal
+        visible={showConfirmDelete}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmDelete(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🗑️ Eliminar comida</Text>
+            {selectedMeal && (
+              <Text style={styles.confirmText}>
+                ¿Estás seguro de que deseas eliminar "{selectedMeal.meal.recipeName}"?
+              </Text>
+            )}
+            
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity 
+                style={styles.confirmCancelBtn} 
+                onPress={() => setShowConfirmDelete(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.confirmDeleteBtn} 
+                onPress={confirmDelete}
+              >
+                <Text style={styles.confirmDeleteText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -181,6 +207,7 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '85%', maxWidth: 400, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 4 },
   modalRecipeName: { fontSize: 14, color: '#666', marginBottom: 20, fontWeight: '600', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  confirmText: { fontSize: 14, color: '#666', marginBottom: 20, fontWeight: '500', paddingVertical: 12 },
   optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: '#f5f5f5', borderRadius: 8, marginBottom: 10 },
   optionBtnDelete: { backgroundColor: '#fee2e2' },
   optionIcon: { fontSize: 20 },
@@ -188,5 +215,10 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 14, fontWeight: '600', color: '#333' },
   optionTextDelete: { fontSize: 14, fontWeight: '600', color: '#DC2626' },
   optionBtnCancel: { paddingVertical: 12, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', marginTop: 10 },
-  optionTextCancel: { fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center' }
+  optionTextCancel: { fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center' },
+  confirmButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  confirmCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f5f5f5' },
+  confirmCancelText: { fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center' },
+  confirmDeleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: '#DC2626' },
+  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff', textAlign: 'center' }
 });
