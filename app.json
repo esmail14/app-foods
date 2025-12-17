@@ -6,6 +6,28 @@
     "sdkVersion": "54.0.0",
     "scheme": "meal-planner",
     "orientation": "portrait",
-    "userInterfaceStyle": "light"
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.mealplanner.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2c769f0a-40fa-4761-9247-aea127f3e7e5"
+      }
+    }
   }
 }
