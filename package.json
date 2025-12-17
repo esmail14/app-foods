@@ -25,7 +25,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "expo-cli": "^6.3.12"
+    "expo-cli": "^6.3.12",
+    "webpack-dev-server": "^4.15.1"
   },
   "private": true
 }
