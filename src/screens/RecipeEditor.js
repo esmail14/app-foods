@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import { saveRecipe, getAllRecipes, deleteRecipe as storageDelete } from '../storage/storage';
 import { parseIngredientLine } from '../utils/ingredients';
 
@@ -8,6 +8,11 @@ export default function RecipeEditor({ navigation, route }) {
   const [name, setName] = useState(editing?.name ?? '');
   const [ingredientLine, setIngredientLine] = useState('');
   const [ingredients, setIngredients] = useState(editing?.ingredients ?? []);
+  const [editingIngredient, setEditingIngredient] = useState(null);
+  const [editingAmount, setEditingAmount] = useState('');
+  const [editingUnit, setEditingUnit] = useState('');
+
+  const units = ['', 'g', 'kg', 'ml', 'l', 'taza', 'cucharada', 'cucharadita', 'unidad', 'paquete'];
 
   useEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar receta' : 'Nueva receta' });
@@ -80,6 +85,28 @@ export default function RecipeEditor({ navigation, route }) {
     setIngredients(copy);
   }
 
+  function openEditAmount(ingredient, idx) {
+    setEditingIngredient(idx);
+    setEditingAmount(ingredient.amount ? String(ingredient.amount) : '');
+    setEditingUnit(ingredient.unit ?? '');
+  }
+
+  function saveAmount() {
+    if (editingIngredient !== null) {
+      const copy = [...ingredients];
+      const amount = editingAmount.trim() ? Number(editingAmount) : null;
+      copy[editingIngredient] = {
+        ...copy[editingIngredient],
+        amount,
+        unit: editingUnit
+      };
+      setIngredients(copy);
+      setEditingIngredient(null);
+      setEditingAmount('');
+      setEditingUnit('');
+    }
+  }
+
   async function removeRecipe() {
     if (!editing) return;
     
@@ -122,7 +149,14 @@ export default function RecipeEditor({ navigation, route }) {
           keyExtractor={(_,i)=>String(i)}
           renderItem={({item,index}) => (
             <View style={styles.ingredientRow}>
-              <Text style={styles.ingredientText}>{item.amount ?? ''} {item.unit ?? ''} {item.name}</Text>
+              <TouchableOpacity 
+                style={styles.ingredientContent}
+                onPress={() => openEditAmount(item, index)}
+              >
+                <Text style={styles.ingredientText}>
+                  {item.amount ? `${item.amount}` : '?'} {item.unit ? `${item.unit}` : ''} {item.name}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => removeIngredient(index)} style={styles.deleteBtn}>
                 <Text style={styles.deleteIcon}>✕</Text>
               </TouchableOpacity>
@@ -143,6 +177,67 @@ export default function RecipeEditor({ navigation, route }) {
           </TouchableOpacity>
         : null}
       </View>
+
+      {/* Modal para editar cantidad */}
+      <Modal
+        visible={editingIngredient !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setEditingIngredient(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Editar cantidad</Text>
+            {editingIngredient !== null && (
+              <Text style={styles.modalSubtitle}>{ingredients[editingIngredient]?.name}</Text>
+            )}
+            
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Cantidad</Text>
+              <TextInput
+                value={editingAmount}
+                onChangeText={setEditingAmount}
+                style={styles.modalInput}
+                placeholder="Ej: 2, 1.5, etc"
+                keyboardType="decimal-pad"
+                placeholderTextColor="#ccc"
+              />
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Unidad</Text>
+              <ScrollView horizontal style={styles.unitsContainer}>
+                {units.map((u) => (
+                  <TouchableOpacity
+                    key={u}
+                    style={[styles.unitBtn, editingUnit === u && styles.unitBtnActive]}
+                    onPress={() => setEditingUnit(u)}
+                  >
+                    <Text style={[styles.unitBtnText, editingUnit === u && styles.unitBtnTextActive]}>
+                      {u || 'Sin unidad'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setEditingIngredient(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={saveAmount}
+              >
+                <Text style={styles.modalSaveText}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -156,7 +251,8 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontWeight: '600' },
   addBtnIcon: { fontSize: 18 },
   ingredientRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' },
-  ingredientText: { flex: 1, color: '#333', fontSize: 14 },
+  ingredientContent: { flex: 1, paddingRight: 10 },
+  ingredientText: { color: '#333', fontSize: 14 },
   deleteBtn: { padding: 4 },
   deleteIcon: { fontSize: 18, color: '#FF6B6B' },
   buttons: { flexDirection: 'column', gap: 8, marginTop: 12 },
@@ -165,5 +261,23 @@ const styles = StyleSheet.create({
   saveBtnIcon: { fontSize: 18 },
   deleteRecipeBtn: { backgroundColor: '#FF6B6B', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 14, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   deleteBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  deleteBtnIcon: { fontSize: 18 }
+  deleteBtnIcon: { fontSize: 18 },
+  // Modal styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '85%', maxWidth: 400, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 16, fontWeight: '600' },
+  modalSection: { marginBottom: 16 },
+  modalLabel: { fontSize: 13, fontWeight: '600', color: '#333', marginBottom: 8, textTransform: 'uppercase' },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 6, color: '#333', fontSize: 14 },
+  unitsContainer: { flexDirection: 'row', marginBottom: 8 },
+  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', marginRight: 8, backgroundColor: '#f5f5f5' },
+  unitBtnActive: { backgroundColor: '#4ECDC4', borderColor: '#4ECDC4' },
+  unitBtnText: { color: '#333', fontSize: 13, fontWeight: '500' },
+  unitBtnTextActive: { color: '#fff', fontWeight: '600' },
+  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  modalCancelBtn: { flex: 1, paddingVertical: 10, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f5f5f5' },
+  modalCancelText: { color: '#333', fontWeight: '600', textAlign: 'center' },
+  modalSaveBtn: { flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: '#4ECDC4' },
+  modalSaveText: { color: '#fff', fontWeight: '600', textAlign: 'center' }
 });

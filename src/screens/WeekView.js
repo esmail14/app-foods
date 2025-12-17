@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Button, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Button, Alert } from 'react-native';
 import { getMealsForWeek, saveMeal } from '../storage/storage';
 import { useIsFocused } from '@react-navigation/native';
 import MealCell from '../components/MealCell';
@@ -33,31 +33,14 @@ export default function WeekView({ navigation }) {
     navigation.navigate('Recipes', {
       pickFor: { date: dateStr, mealType },
       onPick: async (recipe) => {
-        // Mostrar confirmación antes de guardar
-        const mealTypeLabel = mealType === 'desayuno' ? '🌅 Desayuno' : 
-                              mealType === 'almuerzo' ? '🍽 Almuerzo' : 
-                              '🌙 Cena';
-        
-        Alert.alert(
-          '✅ Confirmar',
-          `¿Asignar "${recipe.name}" como ${mealTypeLabel}?`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Confirmar',
-              onPress: async () => {
-                await saveMeal({ 
-                  date: dateStr, 
-                  mealType, 
-                  recipeId: recipe.id, 
-                  recipeName: recipe.name, 
-                  ingredients: recipe.ingredients 
-                });
-                load();
-              }
-            }
-          ]
-        );
+        await saveMeal({ 
+          date: dateStr, 
+          mealType, 
+          recipeId: recipe.id, 
+          recipeName: recipe.name, 
+          ingredients: recipe.ingredients 
+        });
+        load();
       }
     });
   }

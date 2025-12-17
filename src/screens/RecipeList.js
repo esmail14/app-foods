@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Button, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Button, StyleSheet, TextInput } from 'react-native';
 import { getAllRecipes, deleteRecipe } from '../storage/storage';
 
 export default function RecipeList({ navigation, route }) {
   const [recipes, setRecipes] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [filteredRecipes, setFilteredRecipes] = useState([]);
   const pickFor = route.params?.pickFor;
   const onPick = route.params?.onPick;
 
@@ -12,9 +14,26 @@ export default function RecipeList({ navigation, route }) {
     return unsub;
   }, [navigation]);
 
+  useEffect(() => {
+    filterRecipes();
+  }, [searchText, recipes]);
+
   async function load() {
     const all = await getAllRecipes();
     setRecipes(all);
+  }
+
+  function filterRecipes() {
+    if (!searchText.trim()) {
+      setFilteredRecipes(recipes);
+    } else {
+      const search = searchText.toLowerCase().trim();
+      const filtered = recipes.filter(r => 
+        r.name.toLowerCase().includes(search) ||
+        r.ingredients.some(ing => ing.name.toLowerCase().includes(search))
+      );
+      setFilteredRecipes(filtered);
+    }
   }
 
   function openEditor(recipe) {
@@ -33,25 +52,47 @@ export default function RecipeList({ navigation, route }) {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recetas</Text>
       </View>
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+          placeholder="Buscar receta o ingrediente..."
+          placeholderTextColor="#ccc"
+        />
+        {searchText ? (
+          <TouchableOpacity onPress={() => setSearchText('')}>
+            <Text style={styles.clearIcon}>✕</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
       <TouchableOpacity style={styles.newBtn} onPress={() => navigation.navigate('EditRecipe')}>
         <Text style={styles.newBtnIcon}>➕</Text>
         <Text style={styles.newBtnText}>Nueva receta</Text>
       </TouchableOpacity>
       <FlatList
-        data={recipes}
+        data={filteredRecipes}
         keyExtractor={(r) => r.id}
         renderItem={({item}) => (
           <TouchableOpacity style={styles.item} onPress={() => pickFor ? pick(item) : openEditor(item)}>
             <View style={styles.itemContent}>
               <View style={styles.itemText}>
                 <Text style={styles.title}>{item.name}</Text>
-                <Text style={styles.sub} numberOfLines={1}>{item.ingredients.map(i => `${i.amount ?? ''} ${i.unit ?? ''} ${i.name}`).join(', ')}</Text>
+                <Text style={styles.sub} numberOfLines={1}>{item.ingredients.map(i => `${i.amount ?? ''} ${i.unit ?? ''} ${i.name}`.trim()).join(', ')}</Text>
               </View>
               <Text style={styles.chevron}>›</Text>
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyIcon}>🍽</Text><Text style={styles.emptyText}>No hay recetas aún</Text></View>}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={styles.emptyText}>
+              {recipes.length === 0 ? 'No hay recetas aún' : 'Sin resultados'}
+            </Text>
+          </View>
+        }
         contentContainerStyle={{ paddingBottom: 20 }}
       />
     </View>
@@ -62,7 +103,26 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   header: { backgroundColor: '#4ECDC4', padding: 16, paddingTop: 12 },
   headerTitle: { color: '#fff', fontSize: 24, fontWeight: '700' },
-  newBtn: { backgroundColor: '#4ECDC4', margin: 12, paddingVertical: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
+  searchContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  searchIcon: { fontSize: 18, marginRight: 8, color: '#666' },
+  searchInput: { 
+    flex: 1, 
+    paddingVertical: 10, 
+    color: '#333',
+    fontSize: 14
+  },
+  clearIcon: { fontSize: 18, color: '#ccc', fontWeight: 'bold' },
+  newBtn: { backgroundColor: '#4ECDC4', marginHorizontal: 12, marginBottom: 12, paddingVertical: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   newBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   newBtnIcon: { fontSize: 20 },
   item: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff', marginHorizontal: 12, marginVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#e0e0e0' },
