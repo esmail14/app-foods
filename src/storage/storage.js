@@ -66,6 +66,15 @@ export async function saveMeal(mealEntry) {
   await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
 }
 
+export async function deleteMeal(date, mealType) {
+  const raw = await AsyncStorage.getItem(MEALS_KEY);
+  const data = raw ? JSON.parse(raw) : {};
+  if (data[date] && data[date][mealType]) {
+    delete data[date][mealType];
+  }
+  await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
+}
+
 // Pantry: array of { name, amount, unit }
 export async function getPantry() {
   const raw = await AsyncStorage.getItem(PANTRY_KEY);

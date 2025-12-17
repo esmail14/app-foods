@@ -1,11 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function MealCell({ meal, onPress }) {
+export default function MealCell({ meal, onPress, onLongPress }) {
   const hasRecipe = !!meal?.recipeName;
 
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.cell, hasRecipe && styles.cellAssigned]}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      onLongPress={onLongPress}
+      style={[styles.cell, hasRecipe && styles.cellAssigned]}
+      delayLongPress={300}
+    >
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <View style={styles.headerRow}>
@@ -16,7 +21,12 @@ export default function MealCell({ meal, onPress }) {
             {meal?.recipeName ?? 'Asignar receta'}
           </Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <View style={styles.rightSection}>
+          {hasRecipe && (
+            <Text style={styles.editIcon}>⋮</Text>
+          )}
+          <Text style={styles.chevron}>›</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -48,5 +58,7 @@ const styles = StyleSheet.create({
   recipeName: { fontSize: 15, fontWeight: '500', marginTop: 4 },
   recipeNameAssigned: { color: '#15803d', fontWeight: '600' },
   recipeNameEmpty: { color: '#999', fontStyle: 'italic' },
+  rightSection: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editIcon: { fontSize: 18, color: '#666', paddingHorizontal: 6 },
   chevron: { fontSize: 24, color: '#ccc', fontWeight: '300' }
 });
