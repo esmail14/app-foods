@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Meal Planner MVP",
+    "slug": "meal-planner-mvp",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "scheme": "meal-planner",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light"
+  }
+}
