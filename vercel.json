@@ -1,5 +1,13 @@
 {
-  "buildCommand": "expo export -p web",
-  "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps"
+  "buildCommand": "npm run build:web 2>/dev/null || true",
+  "outputDirectory": "public",
+  "installCommand": "npm install --legacy-peer-deps",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
+  ]
 }
