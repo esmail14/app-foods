@@ -1,12 +1,12 @@
 {
-  "buildCommand": "npm run build:web 2>/dev/null || true",
+  "buildCommand": "true",
   "outputDirectory": "public",
   "installCommand": "npm install --legacy-peer-deps",
   "cleanUrls": true,
   "trailingSlash": false,
-  "redirects": [
+  "rewrites": [
     {
-      "source": "/",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
