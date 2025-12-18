@@ -1,94 +1,239 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../supabase';
 
 // Keys
 const RECIPES_KEY = 'mp_recipes_v1';
 const MEALS_KEY = 'mp_meals_v1';
 const PANTRY_KEY = 'mp_pantry_v1';
 
-// Utilities to handle recipes and meals (simple AsyncStorage-based)
+// Get current user
+async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
 
-// Recipes: array of { id, name, ingredients: [{name, amount, unit}] }
+// RECIPES
+
 export async function getAllRecipes() {
-  const raw = await AsyncStorage.getItem(RECIPES_KEY);
-  if (!raw) {
-    // seed example
-    const seed = [{
-      id: uuidv4(),
-      name: 'Ensalada rápida',
-      ingredients: [{ name: 'lechuga', amount: 1, unit: 'unidad' }, { name: 'tomate', amount: 2, unit: 'unidad' }]
-    }];
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(seed));
-    return seed;
+  try {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    // Fetch from Supabase
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Transform data
+    const recipes = (data || []).map(r => ({
+      id: r.id,
+      name: r.name,
+      ingredients: r.ingredients || []
+    }));
+
+    // Cache locally
+    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    return recipes;
+  } catch (error) {
+    console.error('Error fetching recipes:', error);
+    // Fallback to local cache
+    const raw = await AsyncStorage.getItem(RECIPES_KEY);
+    return raw ? JSON.parse(raw) : [];
   }
-  try { return JSON.parse(raw); } catch { return []; }
 }
 
 export async function saveRecipe(recipe) {
-  const all = await getAllRecipes();
-  if (recipe.id) {
-    const idx = all.findIndex(r => r.id === recipe.id);
-    if (idx >= 0) { all[idx] = recipe; }
-    else { all.push({ ...recipe, id: recipe.id }); }
-  } else {
-    all.push({ ...recipe, id: uuidv4() });
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const recipeData = {
+      id: recipe.id || uuidv4(),
+      name: recipe.name,
+      ingredients: recipe.ingredients || [],
+      user_id: user.id
+    };
+
+    if (recipe.id) {
+      // Update existing
+      const { error } = await supabase
+        .from('recipes')
+        .update({
+          name: recipeData.name,
+          ingredients: recipeData.ingredients,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', recipeData.id);
+
+      if (error) throw error;
+    } else {
+      // Insert new
+      const { error } = await supabase
+        .from('recipes')
+        .insert([recipeData]);
+
+      if (error) throw error;
+      recipe.id = recipeData.id;
+    }
+
+    // Update local cache
+    const all = await getAllRecipes();
+    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+  } catch (error) {
+    console.error('Error saving recipe:', error);
+    throw error;
   }
-  await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
 }
 
 export async function deleteRecipe(id) {
-  const all = await getAllRecipes();
-  const filtered = all.filter(r => r.id !== id);
-  await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(filtered));
-}
-
-// Meals stored by date string: object { [date]: { mealType: mealEntry } }
-// mealEntry: { date, mealType, recipeId, recipeName, ingredients }
-export async function getMealsForWeek(startOfWeek) {
-  const raw = await AsyncStorage.getItem(MEALS_KEY);
-  const data = raw ? JSON.parse(raw) : {};
-  // build 7-day map
-  const result = {};
-  const monday = new Date(startOfWeek);
-  for (let i=0;i<7;i++) {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
-    const key = d.toISOString().slice(0,10);
-    result[key] = data[key] || {};
-  }
-  return result;
-}
-
-export async function saveMeal(mealEntry) {
-  const raw = await AsyncStorage.getItem(MEALS_KEY);
-  const data = raw ? JSON.parse(raw) : {};
-  if (!data[mealEntry.date]) data[mealEntry.date] = {};
-  data[mealEntry.date][mealEntry.mealType] = mealEntry;
-  await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
-}
-
-export async function deleteMeal(date, mealType) {
   try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('recipes')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Update local cache
+    const all = await getAllRecipes();
+    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+  } catch (error) {
+    console.error('Error deleting recipe:', error);
+    throw error;
+  }
+}
+
+// MEALS
+
+export async function getMealsForWeek(startOfWeek) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return {};
+
+    // Fetch all meals for this week
+    const { data, error } = await supabase
+      .from('meals')
+      .select('*, recipes(id, name, ingredients)')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Group by day and meal_type
+    const mealsMap = {};
+    (data || []).forEach(meal => {
+      if (!mealsMap[meal.day]) mealsMap[meal.day] = {};
+      mealsMap[meal.day][meal.meal_type] = {
+        id: meal.id,
+        date: meal.day,
+        mealType: meal.meal_type,
+        recipeId: meal.recipe_id,
+        recipeName: meal.recipes?.name || 'Unknown',
+        ingredients: meal.recipes?.ingredients || []
+      };
+    });
+
+    // Cache locally
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    return mealsMap;
+  } catch (error) {
+    console.error('Error fetching meals:', error);
+    // Fallback to local cache
     const raw = await AsyncStorage.getItem(MEALS_KEY);
-    const data = raw ? JSON.parse(raw) : {};
-    
-    if (data[date] && data[date][mealType]) {
-      delete data[date][mealType];
-      
-      // Si no quedan comidas en ese día, eliminar el día también (opcional)
-      if (Object.keys(data[date]).length === 0) {
-        delete data[date];
-      }
-    }
-    
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(data));
-    return true;
+    return raw ? JSON.parse(raw) : {};
+  }
+}
+
+export async function addMealToDay(date, mealType, recipeId, recipeName, ingredients) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('meals')
+      .insert([{
+        user_id: user.id,
+        day: date,
+        meal_type: mealType,
+        recipe_id: recipeId
+      }]);
+
+    if (error) throw error;
+
+    // Update local cache
+    const mealsMap = await getMealsForWeek(date);
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+  } catch (error) {
+    console.error('Error adding meal:', error);
+    throw error;
+  }
+}
+
+// Alias for backward compatibility
+export async function saveMeal(mealEntry) {
+  return addMealToDay(
+    mealEntry.date,
+    mealEntry.mealType,
+    mealEntry.recipeId,
+    mealEntry.recipeName,
+    mealEntry.ingredients
+  );
+}
+
+export async function deleteMealFromDay(date, mealId) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('meals')
+      .delete()
+      .eq('id', mealId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Update local cache
+    const mealsMap = await getMealsForWeek(date);
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
   } catch (error) {
     console.error('Error deleting meal:', error);
     throw error;
   }
 }
 
-// Pantry: array of { name, amount, unit }
+// Alias for backward compatibility
+export async function deleteMeal(date, mealType) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('meals')
+      .delete()
+      .eq('day', date)
+      .eq('meal_type', mealType)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Update local cache
+    const mealsMap = await getMealsForWeek(date);
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+  } catch (error) {
+    console.error('Error deleting meal:', error);
+    throw error;
+  }
+}
+
+// Pantry (keep local for now)
 export async function getPantry() {
   const raw = await AsyncStorage.getItem(PANTRY_KEY);
   return raw ? JSON.parse(raw) : [];

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Button, Alert, Modal } from 'react-native';
 import { getMealsForWeek, saveMeal, deleteMeal } from '../storage/storage';
 import { useIsFocused } from '@react-navigation/native';
+import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
 
 const mealTypes = ['desayuno', 'almuerzo', 'cena']; // puedes cambiar nombres si prefieres
@@ -81,6 +82,26 @@ export default function WeekView({ navigation }) {
     openRecipePicker(selectedMeal.dateStr, selectedMeal.mealType);
   }
 
+  async function handleLogout() {
+    console.log('Logout handler called');
+    try {
+      console.log('Calling supabase.auth.signOut()');
+      const { error } = await supabase.auth.signOut();
+      console.log('Sign out result:', { error });
+      
+      if (error) {
+        console.error('Logout error:', error);
+        Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
+      } else {
+        console.log('Sign out successful');
+        // Session will be null in App.js, which will trigger navigation change
+      }
+    } catch (error) {
+      console.error('Logout exception:', error);
+      Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
+    }
+  }
+
   function renderDay(dayOffset) {
     const date = new Date();
     const monday = startOfWeek();
@@ -115,6 +136,13 @@ export default function WeekView({ navigation }) {
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Recipes')}>
           <Text style={styles.actionBtnIcon}>🍽</Text>
           <Text style={styles.actionBtnText}>Recetas</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.actionBtn, { backgroundColor: '#E74C3C' }]} 
+          onPress={handleLogout}
+        >
+          <Text style={styles.actionBtnIcon}>🚪</Text>
+          <Text style={styles.actionBtnText}>Salir</Text>
         </TouchableOpacity>
       </View>
       <FlatList

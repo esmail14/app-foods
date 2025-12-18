@@ -4,10 +4,12 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 export default function MealCell({ meal, onPress, onLongPress }) {
   const hasRecipe = !!meal?.recipeName;
   const [pressTimeout, setPressTimeout] = useState(null);
+  const [isLongPressed, setIsLongPressed] = useState(false);
 
   const handlePressIn = () => {
     if (hasRecipe && onLongPress) {
       const timeout = setTimeout(() => {
+        setIsLongPressed(true);
         onLongPress();
       }, 500);
       setPressTimeout(timeout);
@@ -19,11 +21,18 @@ export default function MealCell({ meal, onPress, onLongPress }) {
       clearTimeout(pressTimeout);
       setPressTimeout(null);
     }
+    setIsLongPressed(false);
+  };
+
+  const handlePress = () => {
+    if (!isLongPressed && onPress) {
+      onPress();
+    }
   };
 
   return (
     <TouchableOpacity 
-      onPress={onPress} 
+      onPress={handlePress} 
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[styles.cell, hasRecipe && styles.cellAssigned]}
