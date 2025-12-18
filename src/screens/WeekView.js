@@ -4,6 +4,7 @@ import { getMealsForWeek, saveMeal, deleteMeal, getUserSettings } from '../stora
 import { useIsFocused } from '@react-navigation/native';
 import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
+import WeeklySummary from '../components/WeeklySummary';
 
 function startOfWeek(date = new Date()) {
   const d = new Date(date);
@@ -20,6 +21,7 @@ export default function WeekView({ navigation }) {
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [viewMode, setViewMode] = useState('day'); // 'day' o 'week'
   const focused = useIsFocused();
 
   useEffect(() => {
@@ -43,6 +45,18 @@ export default function WeekView({ navigation }) {
     const start = startOfWeek();
     const data = await getMealsForWeek(start);
     setMealsByDate(data);
+  }
+
+  function getTodayString() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().slice(0, 10);
+  }
+
+  function getTodayDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
   }
 
   function openRecipePicker(dateStr, mealType) {
@@ -103,12 +117,47 @@ export default function WeekView({ navigation }) {
     }
   }
 
+  function renderDayLarge() {
+    const today = getTodayDate();
+    const todayStr = getTodayString();
+    
+    return (
+      <View style={styles.dayLargeContainer}>
+        <View style={styles.dayLargeHeader}>
+          <View>
+            <Text style={styles.dayLargeTitle}>
+              {today.toLocaleDateString(undefined, { weekday: 'long' })}
+            </Text>
+            <Text style={styles.dayLargeDate}>
+              {today.getDate()} {today.toLocaleDateString(undefined, { month: 'short' })} • Hoy
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.viewSwitchBtn} onPress={() => setViewMode('week')}>
+            <Text style={styles.viewSwitchBtnText}>Ver semana</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.mealsLargeContainer}>
+          {mealTypes.map((mt) => (
+            <MealCell
+              key={mt}
+              meal={mealsByDate[todayStr]?.[mt]}
+              mealType={mt}
+              onPress={() => openRecipePicker(todayStr, mt)}
+              onLongPress={() => handleLongPress(todayStr, mt)}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   function renderDay(dayOffset) {
-    const date = new Date();
+    let d = new Date();
     const monday = startOfWeek();
-    const d = new Date(monday);
+    d = new Date(monday);
     d.setDate(monday.getDate() + dayOffset);
-    const dateStr = d.toISOString().slice(0,10);
+    const dateStr = d.toISOString().slice(0, 10);
     return (
       <View style={styles.day} key={dateStr}>
         <Text style={styles.dayTitle}>{d.toLocaleDateString(undefined, { weekday: 'short' })}</Text>
@@ -127,6 +176,27 @@ export default function WeekView({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {viewMode === 'day' ? (
+        <View style={styles.contentContainer}>
+          {renderDayLarge()}
+        </View>
+      ) : (
+        <>
+          <TouchableOpacity 
+            style={styles.backToDay}
+            onPress={() => setViewMode('day')}
+          >
+            <Text style={styles.backToDayText}>← Volver al día actual</Text>
+          </TouchableOpacity>
+          <FlatList
+            data={[0, 1, 2, 3, 4, 5, 6]}
+            keyExtractor={(i) => String(i)}
+            renderItem={({ item }) => renderDay(item)}
+            contentContainerStyle={{ paddingBottom: 80 }}
+          />
+        </>
+      )}
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ShoppingList')}>
           <Text style={styles.actionBtnIcon}>🛒</Text>
@@ -141,12 +211,6 @@ export default function WeekView({ navigation }) {
           <Text style={styles.actionBtnText}>Config</Text>
         </TouchableOpacity>
       </View>
-      <FlatList
-        data={[0,1,2,3,4,5,6]}
-        keyExtractor={(i) => String(i)}
-        renderItem={({item}) => renderDay(item)}
-        contentContainerStyle={{paddingBottom: 80}}
-      />
 
       {/* Modal de opciones para comidas asignadas */}
       <Modal
@@ -218,15 +282,22 @@ export default function WeekView({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: { backgroundColor: '#FF6B6B', padding: 16, paddingTop: 12 },
-  headerTitle: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  contentContainer: { flex: 1, paddingBottom: 80 },
   day: { paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#fff', marginVertical: 6, marginHorizontal: 12, borderRadius: 8 },
   dayTitle: { fontWeight: '700', marginBottom: 10, fontSize: 14, color: '#333', textTransform: 'uppercase' },
-  actions: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 12, paddingVertical: 12, gap: 10 },
+  dayLargeContainer: { flex: 1, paddingHorizontal: 12, paddingVertical: 12 },
+  dayLargeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  dayLargeTitle: { fontSize: 28, fontWeight: '700', color: '#333', textTransform: 'capitalize' },
+  dayLargeDate: { fontSize: 14, color: '#666', marginTop: 4 },
+  viewSwitchBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, backgroundColor: '#f0f9f8', borderWidth: 1, borderColor: '#4ECDC4' },
+  viewSwitchBtnText: { fontSize: 13, fontWeight: '600', color: '#4ECDC4' },
+  mealsLargeContainer: { gap: 8 },
+  backToDay: { paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#e8f4f3', borderBottomWidth: 1, borderBottomColor: '#4ECDC4' },
+  backToDayText: { color: '#4ECDC4', fontWeight: '600', fontSize: 14 },
+  actions: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 12, paddingVertical: 12, gap: 10, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0' },
   actionBtn: { flex: 1, backgroundColor: '#FF6B6B', paddingVertical: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   actionBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   actionBtnIcon: { fontSize: 20 },
-  // Modal styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '85%', maxWidth: 400, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 4 },
