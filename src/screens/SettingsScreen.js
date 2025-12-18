@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { supabase } from '../supabase';
 import { getUserSettings, saveUserSettings } from '../storage/storage';
 
 const PRESET_OPTIONS = [
@@ -53,6 +54,23 @@ export default function SettingsScreen({ navigation }) {
     }
   }
 
+  async function handleLogout() {
+    Alert.alert('Cerrar Sesión', '¿Deseas cerrar sesión?', [
+      { text: 'Cancelar' },
+      {
+        text: 'Cerrar Sesión',
+        onPress: async () => {
+          try {
+            await supabase.auth.signOut();
+          } catch (error) {
+            console.error('Logout error:', error);
+            Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
+          }
+        }
+      }
+    ]);
+  }
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -101,6 +119,15 @@ export default function SettingsScreen({ navigation }) {
             )}
           </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={[styles.section, { marginTop: 40 }]}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Text style={styles.logoutButtonText}>🚪 Cerrar Sesión</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -174,5 +201,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#FF6B6B',
     fontWeight: 'bold'
+  },
+  logoutButton: {
+    backgroundColor: '#E74C3C',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
   }
 });

@@ -83,23 +83,15 @@ export default function App() {
           options={{
             title: 'Configuración',
             drawerLabel: '⚙️ Configuración',
-          }}
-        />
-        <Drawer.Screen
-          name="LogoutScreen"
-          options={{
-            title: '',
-            drawerLabel: '🚪 Cerrar Sesión',
-            headerShown: false,
-            unmountOnBlur: true,
-          }}
-          listeners={({ navigation }) => ({
-            drawerItemPress: (e) => {
-              e.preventDefault();
-              handleLogout(navigation);
+            headerStyle: {
+              backgroundColor: '#FF6B6B',
             },
-          })}
-          component={() => null}
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+              fontSize: 18,
+            },
+          }}
         />
       </Drawer.Navigator>
     );
@@ -167,14 +159,6 @@ export default function App() {
         />
       </Stack.Navigator>
     );
-  }
-
-  async function handleLogout(navigation) {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
   }
 
   return (
