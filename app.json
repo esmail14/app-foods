@@ -7,6 +7,7 @@
     "scheme": "meal-planner",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTabletMode": true,
       "bundleIdentifier": "com.mealplanner.app",
@@ -14,6 +15,15 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {}
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "2c769f0a-40fa-4761-9247-aea127f3e7e5"
