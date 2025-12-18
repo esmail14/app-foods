@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabase';
 import { getUserSettings, saveUserSettings } from '../storage/storage';
 
@@ -24,6 +25,16 @@ const PRESET_OPTIONS = [
 export default function SettingsScreen({ navigation }) {
   const [selectedOption, setSelectedOption] = useState(3);
   const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   useEffect(() => {
     loadSettings();
@@ -47,28 +58,53 @@ export default function SettingsScreen({ navigation }) {
         meal_count: option.id,
         meal_names: option.meals
       });
-      Alert.alert('✓ Guardado', `Configuración actualizada a ${option.label}`);
+      setMessage(`✓ Configuración actualizada a ${option.label}`);
     } catch (error) {
       console.error('Error saving settings:', error);
-      Alert.alert('Error', 'No se pudo guardar la configuración');
+      setMessage('❌ No se pudo guardar la configuración');
     }
   }
 
-  async function handleLogout() {
-    Alert.alert('Cerrar Sesión', '¿Deseas cerrar sesión?', [
-      { text: 'Cancelar' },
-      {
-        text: 'Cerrar Sesión',
-        onPress: async () => {
-          try {
-            await supabase.auth.signOut();
-          } catch (error) {
-            console.error('Logout error:', error);
-            Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
-          }
-        }
+  function showLogoutConfirmation() {
+    setShowLogoutConfirm(true);
+  }
+
+  async function confirmLogout() {
+    setLoggingOut(true);
+    try {
+      console.log('SettingsScreen: Iniciando logout...');
+      
+      // Limpiar cache local
+      await AsyncStorage.removeItem('mp_recipes_v1');
+      await AsyncStorage.removeItem('mp_meals_v1');
+      await AsyncStorage.removeItem('mp_pantry_v1');
+      await AsyncStorage.removeItem('user_settings');
+      console.log('SettingsScreen: Cache limpiado');
+      
+      // Cerrar sesión en Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('SettingsScreen: Error en logout:', error);
+        setMessage('❌ ' + (error.message || 'No se pudo cerrar sesión'));
+        setShowLogoutConfirm(false);
+        setLoggingOut(false);
+        return;
       }
-    ]);
+      
+      console.log('SettingsScreen: Logout completado');
+      setShowLogoutConfirm(false);
+      // La navegación se manejará automáticamente a través del onAuthStateChange en App.js
+    } catch (error) {
+      console.error('SettingsScreen: Exception en logout:', error);
+      setMessage('❌ ' + (error?.message || 'Algo salió mal al cerrar sesión'));
+      setShowLogoutConfirm(false);
+      setLoggingOut(false);
+    }
+  }
+
+  function cancelLogout() {
+    setShowLogoutConfirm(false);
   }
 
   if (loading) {
@@ -124,11 +160,52 @@ export default function SettingsScreen({ navigation }) {
       <View style={[styles.section, { marginTop: 40 }]}>
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={handleLogout}
+          onPress={showLogoutConfirmation}
         >
           <Text style={styles.logoutButtonText}>🚪 Cerrar Sesión</Text>
         </TouchableOpacity>
       </View>
+
+      {message ? (
+        <View style={[
+          styles.messageBox,
+          message.includes('✓') ? styles.messageSuccess : styles.messageError
+        ]}>
+          <Text style={styles.messageText}>{message}</Text>
+        </View>
+      ) : null}
+
+      <Modal
+        visible={showLogoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelLogout}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.modalMessage}>¿Deseas cerrar sesión?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={cancelLogout}
+                disabled={loggingOut}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButtonConfirm, loggingOut && styles.modalButtonDisabled]}
+                onPress={confirmLogout}
+                disabled={loggingOut}
+              >
+                <Text style={styles.modalButtonConfirmText}>
+                  {loggingOut ? 'Cerrando...' : 'Cerrar Sesión'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -212,5 +289,82 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600'
+  },
+  messageBox: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16
+  },
+  messageSuccess: {
+    backgroundColor: '#d4edda',
+    borderLeftWidth: 4,
+    borderLeftColor: '#28a745'
+  },
+  messageError: {
+    backgroundColor: '#f8d7da',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc3545'
+  },
+  messageText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12
+  },
+  modalButtonCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
+    backgroundColor: '#f0f0f0'
+  },
+  modalButtonCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333'
+  },
+  modalButtonConfirm: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
+    backgroundColor: '#E74C3C'
+  },
+  modalButtonConfirmText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff'
+  },
+  modalButtonDisabled: {
+    opacity: 0.6
   }
 });

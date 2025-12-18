@@ -26,7 +26,7 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event, session);
+        console.log('Auth state changed - Event:', event, 'Session:', session);
         setSession(session);
       }
     );
@@ -45,7 +45,6 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={session ? 'WeekView' : 'Login'}
         screenOptions={{
           headerStyle: {
             backgroundColor: '#FF6B6B',
