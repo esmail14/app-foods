@@ -135,6 +135,10 @@ export default function WeekView({ navigation }) {
           <Text style={styles.actionBtnIcon}>🍽</Text>
           <Text style={styles.actionBtnText}>Recetas</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.actionBtnIcon}>⚙️</Text>
+          <Text style={styles.actionBtnText}>Config</Text>
+        </TouchableOpacity>
       </View>
       <FlatList
         data={[0,1,2,3,4,5,6]}

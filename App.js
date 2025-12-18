@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import { ActivityIndicator, View } from 'react-native';
 import { supabase } from './src/supabase';
 import WeekView from './src/screens/WeekView';
@@ -13,7 +12,6 @@ import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 
 const Stack = createNativeStackNavigator();
-const Drawer = createDrawerNavigator();
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -44,20 +42,11 @@ export default function App() {
     );
   }
 
-  function AppNavigator() {
-    return (
-      <Drawer.Navigator
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName={session ? 'WeekView' : 'Login'}
         screenOptions={{
-          headerShown: true,
-          drawerType: 'front',
-          drawerStyle: {
-            backgroundColor: '#fff',
-            width: 280,
-          },
-          drawerLabelStyle: {
-            fontSize: 16,
-            marginLeft: -20,
-          },
           headerStyle: {
             backgroundColor: '#FF6B6B',
           },
@@ -68,109 +57,49 @@ export default function App() {
           },
         }}
       >
-        <Drawer.Screen
-          name="Home"
-          component={WeekViewNavigator}
-          options={{
-            title: 'Planificador',
-            drawerLabel: '📅 Semana',
-            headerShown: false,
-          }}
-        />
-        <Drawer.Screen
-          name="SettingsDrawer"
-          component={SettingsScreen}
-          options={{
-            title: 'Configuración',
-            drawerLabel: '⚙️ Configuración',
-            headerStyle: {
-              backgroundColor: '#FF6B6B',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 18,
-            },
-          }}
-        />
-      </Drawer.Navigator>
-    );
-  }
-
-  function WeekViewNavigator() {
-    return (
-      <Stack.Navigator>
-        <Stack.Screen
-          name="WeekView"
-          component={WeekView}
-          options={{
-            title: 'Planificador de Comidas',
-            headerStyle: {
-              backgroundColor: '#FF6B6B',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 18,
-            },
-          }}
-        />
-        <Stack.Screen
-          name="Recipes"
-          component={RecipeList}
-          options={{
-            title: 'Recetas',
-            headerStyle: {
-              backgroundColor: '#FF6B6B',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        />
-        <Stack.Screen
-          name="EditRecipe"
-          component={RecipeEditor}
-          options={{
-            title: 'Editar receta',
-            headerStyle: {
-              backgroundColor: '#FF6B6B',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        />
-        <Stack.Screen
-          name="ShoppingList"
-          component={ShoppingList}
-          options={{
-            title: 'Lista de la compra',
-            headerStyle: {
-              backgroundColor: '#FF6B6B',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        />
+        {session ? (
+          <>
+            <Stack.Screen
+              name="WeekView"
+              component={WeekView}
+              options={{ title: 'Planificador de Comidas' }}
+            />
+            <Stack.Screen
+              name="Recipes"
+              component={RecipeList}
+              options={{ title: 'Recetas' }}
+            />
+            <Stack.Screen
+              name="EditRecipe"
+              component={RecipeEditor}
+              options={{ title: 'Editar receta' }}
+            />
+            <Stack.Screen
+              name="ShoppingList"
+              component={ShoppingList}
+              options={{ title: 'Lista de la compra' }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ title: 'Configuración' }}
+            />
+          </>
+        ) : (
+          <>
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Signup"
+              component={SignupScreen}
+              options={{ headerShown: false }}
+            />
+          </>
+        )}
       </Stack.Navigator>
-    );
-  }
-
-  return (
-    <NavigationContainer>
-      {session ? (
-        <AppNavigator />
-      ) : (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
-        </Stack.Navigator>
-      )}
     </NavigationContainer>
   );
 }
