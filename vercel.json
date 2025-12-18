@@ -5,6 +5,12 @@
   "installCommand": "npm install --legacy-peer-deps",
   "cleanUrls": true,
   "trailingSlash": false,
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "develop": false
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
