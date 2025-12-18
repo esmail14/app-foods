@@ -126,9 +126,6 @@ export default function WeekView({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Planificador de Comidas</Text>
-      </View>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ShoppingList')}>
           <Text style={styles.actionBtnIcon}>🛒</Text>
@@ -137,13 +134,6 @@ export default function WeekView({ navigation }) {
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Recipes')}>
           <Text style={styles.actionBtnIcon}>🍽</Text>
           <Text style={styles.actionBtnText}>Recetas</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Text style={styles.actionBtnIcon}>⚙️</Text>
-          <Text style={styles.actionBtnText}>Config</Text>
         </TouchableOpacity>
       </View>
       <FlatList
