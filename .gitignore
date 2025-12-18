@@ -1,4 +1,7 @@
-node_modulesdist
-.expo
-.next
-build
+node_modules/
+dist/
+.expo/
+.next/
+build/
+*.log
+.DS_Store
