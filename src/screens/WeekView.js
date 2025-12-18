@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Button, Alert, Modal } from 'react-native';
-import { getMealsForWeek, saveMeal, deleteMeal } from '../storage/storage';
+import { getMealsForWeek, saveMeal, deleteMeal, getUserSettings } from '../storage/storage';
 import { useIsFocused } from '@react-navigation/native';
 import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
-
-const mealTypes = ['desayuno', 'almuerzo', 'cena']; // puedes cambiar nombres si prefieres
 
 function startOfWeek(date = new Date()) {
   const d = new Date(date);
@@ -18,14 +16,28 @@ function startOfWeek(date = new Date()) {
 
 export default function WeekView({ navigation }) {
   const [mealsByDate, setMealsByDate] = useState({});
+  const [mealTypes, setMealTypes] = useState(['desayuno', 'almuerzo', 'cena']);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const focused = useIsFocused();
 
   useEffect(() => {
-    if (focused) load();
+    if (focused) {
+      loadSettings();
+      load();
+    }
   }, [focused]);
+
+  async function loadSettings() {
+    try {
+      const settings = await getUserSettings();
+      const mealTypesArray = settings.meal_names.map(m => m.toLowerCase());
+      setMealTypes(mealTypesArray);
+    } catch (error) {
+      console.error('Error loading meal types:', error);
+    }
+  }
 
   async function load() {
     const start = startOfWeek();
@@ -83,21 +95,10 @@ export default function WeekView({ navigation }) {
   }
 
   async function handleLogout() {
-    console.log('Logout handler called');
     try {
-      console.log('Calling supabase.auth.signOut()');
-      const { error } = await supabase.auth.signOut();
-      console.log('Sign out result:', { error });
-      
-      if (error) {
-        console.error('Logout error:', error);
-        Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
-      } else {
-        console.log('Sign out successful');
-        // Session will be null in App.js, which will trigger navigation change
-      }
+      await supabase.auth.signOut();
     } catch (error) {
-      console.error('Logout exception:', error);
+      console.error('Logout error:', error);
       Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
     }
   }
@@ -110,7 +111,7 @@ export default function WeekView({ navigation }) {
     const dateStr = d.toISOString().slice(0,10);
     return (
       <View style={styles.day} key={dateStr}>
-        <Text style={styles.dayTitle}>{d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</Text>
+        <Text style={styles.dayTitle}>{d.toLocaleDateString(undefined, { weekday: 'short' })}</Text>
         {mealTypes.map((mt) => (
           <MealCell
             key={mt}
@@ -138,11 +139,11 @@ export default function WeekView({ navigation }) {
           <Text style={styles.actionBtnText}>Recetas</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.actionBtn, { backgroundColor: '#E74C3C' }]} 
-          onPress={handleLogout}
+          style={styles.actionBtn} 
+          onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.actionBtnIcon}>🚪</Text>
-          <Text style={styles.actionBtnText}>Salir</Text>
+          <Text style={styles.actionBtnIcon}>⚙️</Text>
+          <Text style={styles.actionBtnText}>Config</Text>
         </TouchableOpacity>
       </View>
       <FlatList

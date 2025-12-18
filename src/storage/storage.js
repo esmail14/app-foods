@@ -233,6 +233,65 @@ export async function deleteMeal(date, mealType) {
   }
 }
 
+// USER SETTINGS
+
+export async function getUserSettings() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
+
+    // Fetch from Supabase
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 = no rows found, which is expected for new users
+      throw error;
+    }
+
+    if (data) {
+      return {
+        meal_count: data.meal_count || 3,
+        meal_names: data.meal_names || ['Desayuno', 'Almuerzo', 'Cena']
+      };
+    }
+
+    // If no settings exist, return defaults
+    return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
+  } catch (error) {
+    console.error('Error fetching user settings:', error);
+    // Return defaults on error
+    return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
+  }
+}
+
+export async function saveUserSettings(settings) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert(
+        {
+          user_id: user.id,
+          meal_count: settings.meal_count,
+          meal_names: settings.meal_names,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error saving user settings:', error);
+    throw error;
+  }
+}
+
 // Pantry (keep local for now)
 export async function getPantry() {
   const raw = await AsyncStorage.getItem(PANTRY_KEY);

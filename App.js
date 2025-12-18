@@ -7,6 +7,7 @@ import WeekView from './src/screens/WeekView';
 import RecipeList from './src/screens/RecipeList';
 import RecipeEditor from './src/screens/RecipeEditor';
 import ShoppingList from './src/screens/ShoppingList';
+import SettingsScreen from './src/screens/SettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 
@@ -50,6 +51,7 @@ export default function App() {
             <Stack.Screen name="Recipes" component={RecipeList} options={{ title: 'Recetas' }} />
             <Stack.Screen name="EditRecipe" component={RecipeEditor} options={{ title: 'Editar receta' }} />
             <Stack.Screen name="ShoppingList" component={ShoppingList} options={{ title: 'Lista de la compra' }} />
+            <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuración' }} />
           </>
         ) : (
           <>
