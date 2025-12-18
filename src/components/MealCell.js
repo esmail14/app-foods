@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function MealCell({ meal, onPress, onLongPress }) {
+export default function MealCell({ meal, onPress, onLongPress, mealType }) {
   const hasRecipe = !!meal?.recipeName;
   const [pressTimeout, setPressTimeout] = useState(null);
   const [isLongPressed, setIsLongPressed] = useState(false);
+
+  // Mapeo de colores por tipo de comida
+  const getMealColor = () => {
+    const typeNorm = mealType?.toLowerCase() || '';
+    const colors = {
+      desayuno: { bg: '#fffbeb', border: '#fcd34d', label: '#92400e' },
+      almuerzo: { bg: '#fed7aa', border: '#fb923c', label: '#7c2d12' },
+      cena: { bg: '#ddd6fe', border: '#c4b5fd', label: '#4c1d95' },
+      comida: { bg: '#fed7aa', border: '#fb923c', label: '#7c2d12' },
+      merienda: { bg: '#fecdd3', border: '#fb7185', label: '#831843' }
+    };
+    return colors[typeNorm] || { bg: '#f0fdf4', border: '#86efac', label: '#166534' };
+  };
+
+  const color = getMealColor();
 
   const handlePressIn = () => {
     if (hasRecipe && onLongPress) {
@@ -35,12 +50,12 @@ export default function MealCell({ meal, onPress, onLongPress }) {
       onPress={handlePress} 
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[styles.cell, hasRecipe && styles.cellAssigned]}
+      style={[styles.cell, { backgroundColor: color.bg, borderColor: color.border }]}
     >
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <View style={styles.headerRow}>
-            <Text style={styles.mealType}>{meal?.mealType || '—'}</Text>
+            <Text style={[styles.mealType, { color: color.label }]}>{mealType?.charAt(0).toUpperCase() + mealType?.slice(1)}</Text>
             {hasRecipe && <Text style={styles.badge}>✓</Text>}
           </View>
           <Text style={[styles.recipeName, hasRecipe ? styles.recipeNameAssigned : styles.recipeNameEmpty]}>
@@ -61,11 +76,11 @@ export default function MealCell({ meal, onPress, onLongPress }) {
 const styles = StyleSheet.create({
   cell: { 
     padding: 12, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#f0fdf4',
     marginVertical: 6, 
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 2,
+    borderColor: '#86efac',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,

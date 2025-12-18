@@ -116,6 +116,7 @@ export default function WeekView({ navigation }) {
           <MealCell
             key={mt}
             meal={mealsByDate[dateStr]?.[mt]}
+            mealType={mt}
             onPress={() => openRecipePicker(dateStr, mt)}
             onLongPress={() => handleLongPress(dateStr, mt)}
           />
