@@ -49,12 +49,15 @@ export default function App() {
         screenOptions={{
           headerStyle: {
             backgroundColor: '#FF6B6B',
+            borderBottomWidth: 2,
+            borderBottomColor: '#E85555',
           },
           headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
             fontSize: 18,
           },
+          headerBackTitleVisible: false,
         }}
       >
         {session ? (
