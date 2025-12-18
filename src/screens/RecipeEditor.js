@@ -1,66 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
+import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Picker } from 'react-native';
 import { saveRecipe, getAllRecipes, deleteRecipe as storageDelete } from '../storage/storage';
-import { parseIngredientLine } from '../utils/ingredients';
 
 export default function RecipeEditor({ navigation, route }) {
   const editing = route.params?.recipe;
   const [name, setName] = useState(editing?.name ?? '');
-  const [ingredientLine, setIngredientLine] = useState('');
+  const [ingredientName, setIngredientName] = useState('');
+  const [ingredientAmount, setIngredientAmount] = useState('');
+  const [ingredientUnit, setIngredientUnit] = useState('');
   const [ingredients, setIngredients] = useState(editing?.ingredients ?? []);
-  const [editingIngredient, setEditingIngredient] = useState(null);
-  const [editingAmount, setEditingAmount] = useState('');
-  const [editingUnit, setEditingUnit] = useState('');
+  const [editingIngredientIdx, setEditingIngredientIdx] = useState(null);
+  const [message, setMessage] = useState('');
 
   const units = ['', 'g', 'kg', 'ml', 'l', 'taza', 'cucharada', 'cucharadita', 'unidad', 'paquete'];
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   useEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar receta' : 'Nueva receta' });
   }, []);
 
   function addIngredient() {
-    // Validar que haya algo escrito
-    if (!ingredientLine.trim()) {
-      Alert.alert('⚠️ Campo vacío', 'Por favor ingresa un ingrediente');
+    // Validar que haya nombre
+    if (!ingredientName.trim()) {
+      setMessage('⚠️ Por favor ingresa un nombre de ingrediente');
       return;
     }
 
-    const parsed = parseIngredientLine(ingredientLine);
-    if (!parsed) {
-      Alert.alert('❌ Formato inválido', 'Ejemplos válidos:\n"2 kg patata"\n"1 tomate"\n"sal"\n"3 cucharadas de azúcar"');
+    // Validar que el nombre tenga solo letras, espacios, y algunos caracteres comunes
+    if (!/^[a-záéíóúñ\s\-,\.()]+$/i.test(ingredientName.trim())) {
+      setMessage('⚠️ Solo se permiten letras, espacios y caracteres como (-,.)');
       return;
     }
 
-    // Validar que no sea un ingrediente duplicado
-    const isDuplicate = ingredients.some(
-      ing => ing.name.toLowerCase() === parsed.name.toLowerCase()
-    );
-    if (isDuplicate) {
-      Alert.alert('⚠️ Duplicado', `Ya agregaste "${parsed.name}" a los ingredientes`);
+    // Validar cantidad si existe
+    if (ingredientAmount.trim() && isNaN(ingredientAmount)) {
+      setMessage('⚠️ La cantidad debe ser un número válido (ej: 2, 1.5)');
       return;
     }
 
-    setIngredients([...ingredients, parsed]);
-    setIngredientLine('');
+    const newIngredient = {
+      name: ingredientName.trim(),
+      amount: ingredientAmount.trim() ? Number(ingredientAmount) : null,
+      unit: ingredientUnit || ''
+    };
+
+    if (editingIngredientIdx !== null) {
+      // Modo edición: actualizar ingrediente existente
+      const updatedIngredients = [...ingredients];
+      updatedIngredients[editingIngredientIdx] = newIngredient;
+      setIngredients(updatedIngredients);
+      setEditingIngredientIdx(null);
+      setMessage('✅ Cambios guardados');
+    } else {
+      // Modo agregar: validar duplicados
+      const isDuplicate = ingredients.some(
+        ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
+      );
+      if (isDuplicate) {
+        setMessage(`⚠️ Ya existe "${ingredientName}" en los ingredientes`);
+        return;
+      }
+      
+      setIngredients([...ingredients, newIngredient]);
+      setMessage('✅ Ingrediente agregado');
+    }
+    
+    // Limpiar campos
+    setIngredientName('');
+    setIngredientAmount('');
+    setIngredientUnit('');
+  }
+
+  function startEditingIngredient(idx) {
+    const ingredient = ingredients[idx];
+    setIngredientName(ingredient.name);
+    setIngredientAmount(ingredient.amount ? String(ingredient.amount) : '');
+    setIngredientUnit(ingredient.unit);
+    setEditingIngredientIdx(idx);
+  }
+
+  function cancelEditing() {
+    setIngredientName('');
+    setIngredientAmount('');
+    setIngredientUnit('');
+    setEditingIngredientIdx(null);
   }
 
   async function save() {
     // Validar nombre
     if (!name.trim()) {
-      Alert.alert('⚠️ Error', 'Por favor ingresa un nombre para la receta');
+      setMessage('⚠️ Por favor ingresa un nombre para la receta');
       return;
     }
 
     // Validar ingredientes
     if (ingredients.length === 0) {
-      Alert.alert('⚠️ Error', 'Por favor agrega al menos un ingrediente');
+      setMessage('⚠️ Por favor agrega al menos un ingrediente');
       return;
     }
 
     // Validar que los ingredientes sean válidos
     const invalidIngredients = ingredients.filter(ing => !ing.name || !ing.name.trim());
     if (invalidIngredients.length > 0) {
-      Alert.alert('⚠️ Error', 'Todos los ingredientes deben tener un nombre');
+      setMessage('⚠️ Todos los ingredientes deben tener un nombre');
       return;
     }
 
@@ -75,8 +123,8 @@ export default function RecipeEditor({ navigation, route }) {
     };
 
     await saveRecipe(recipeToSave);
-    Alert.alert('✅ Éxito', `Receta "${recipeToSave.name}" guardada correctamente`);
-    navigation.goBack();
+    setMessage(`✅ Receta "${recipeToSave.name}" guardada`);
+    setTimeout(() => navigation.goBack(), 1500);
   }
 
   async function removeIngredient(idx) {
@@ -85,62 +133,81 @@ export default function RecipeEditor({ navigation, route }) {
     setIngredients(copy);
   }
 
-  function openEditAmount(ingredient, idx) {
-    setEditingIngredient(idx);
-    setEditingAmount(ingredient.amount ? String(ingredient.amount) : '');
-    setEditingUnit(ingredient.unit ?? '');
-  }
-
-  function saveAmount() {
-    if (editingIngredient !== null) {
-      const copy = [...ingredients];
-      const amount = editingAmount.trim() ? Number(editingAmount) : null;
-      copy[editingIngredient] = {
-        ...copy[editingIngredient],
-        amount,
-        unit: editingUnit
-      };
-      setIngredients(copy);
-      setEditingIngredient(null);
-      setEditingAmount('');
-      setEditingUnit('');
-    }
-  }
-
   async function removeRecipe() {
     if (!editing) return;
     
-    Alert.alert(
-      '🗑️ Eliminar receta',
-      `¿Estás seguro de que deseas eliminar "${editing.name}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            await storageDelete(editing.id);
-            Alert.alert('✅ Eliminado', `"${editing.name}" ha sido eliminada`);
-            navigation.goBack();
-          }
-        }
-      ]
-    );
+    const confirmDelete = await new Promise(resolve => {
+      setMessage('¿Eliminar receta? Presiona otra vez para confirmar');
+      setTimeout(() => setMessage(''), 3000);
+      // Simple: solo deletea
+    });
+
+    await storageDelete(editing.id);
+    setMessage(`✅ "${editing.name}" eliminada`);
+    setTimeout(() => navigation.goBack(), 1500);
   }
 
   return (
     <View style={styles.container}>
+      {message ? (
+        <View style={[styles.messageBox, message.includes('⚠️') ? styles.messageError : styles.messageSuccess]}>
+          <Text style={styles.messageText}>{message}</Text>
+        </View>
+      ) : null}
       <View style={styles.section}>
         <Text style={styles.label}>Nombre de la receta</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="P. ej. Ensalada de atún" placeholderTextColor="#ccc" />
       </View>
       <View style={styles.section}>
         <Text style={styles.label}>Agregar ingrediente</Text>
-        <TextInput value={ingredientLine} onChangeText={setIngredientLine} style={styles.input} placeholder='Ej: "2 tomate" o "sal"' placeholderTextColor="#ccc" />
+        <View style={styles.ingredientInputContainer}>
+          <View style={styles.unitPickerContainer}>
+            <Text style={styles.smallLabel}>Unidad</Text>
+            <Picker
+              selectedValue={ingredientUnit}
+              onValueChange={setIngredientUnit}
+              style={styles.unitPicker}
+            >
+              {units.map((unit, idx) => (
+                <Picker.Item key={idx} label={unit || '-'} value={unit} />
+              ))}
+            </Picker>
+          </View>
+          
+          <View style={styles.amountInputContainer}>
+            <Text style={styles.smallLabel}>Cantidad</Text>
+            <TextInput
+              value={ingredientAmount}
+              onChangeText={setIngredientAmount}
+              style={styles.amountInput}
+              placeholder="0"
+              placeholderTextColor="#ccc"
+              keyboardType="decimal-pad"
+            />
+          </View>
+          
+          <View style={styles.nameInputContainer}>
+            <Text style={styles.smallLabel}>Ingrediente</Text>
+            <TextInput
+              value={ingredientName}
+              onChangeText={setIngredientName}
+              style={styles.nameInput}
+              placeholder="Ej: tomate"
+              placeholderTextColor="#ccc"
+            />
+          </View>
+        </View>
+        
         <TouchableOpacity style={styles.addBtn} onPress={addIngredient}>
-          <Text style={styles.addBtnIcon}>➕</Text>
-          <Text style={styles.addBtnText}>Agregar</Text>
+          <Text style={styles.addBtnIcon}>{editingIngredientIdx !== null ? '💾' : '➕'}</Text>
+          <Text style={styles.addBtnText}>{editingIngredientIdx !== null ? 'Guardar cambios' : 'Agregar'}</Text>
         </TouchableOpacity>
+        {editingIngredientIdx !== null && (
+          <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditing}>
+            <Text style={styles.cancelBtnIcon}>✕</Text>
+            <Text style={styles.cancelBtnText}>Cancelar</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.section}>
         <Text style={styles.label}>Ingredientes</Text>
@@ -151,9 +218,9 @@ export default function RecipeEditor({ navigation, route }) {
             <View style={styles.ingredientRow}>
               <TouchableOpacity 
                 style={styles.ingredientContent}
-                onPress={() => openEditAmount(item, index)}
+                onPress={() => startEditingIngredient(index)}
               >
-                <Text style={styles.ingredientText}>
+                <Text style={[styles.ingredientText, editingIngredientIdx === index && styles.ingredientTextEditing]}>
                   {item.amount ? `${item.amount}` : '?'} {item.unit ? `${item.unit}` : ''} {item.name}
                 </Text>
               </TouchableOpacity>
@@ -177,67 +244,6 @@ export default function RecipeEditor({ navigation, route }) {
           </TouchableOpacity>
         : null}
       </View>
-
-      {/* Modal para editar cantidad */}
-      <Modal
-        visible={editingIngredient !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setEditingIngredient(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar cantidad</Text>
-            {editingIngredient !== null && (
-              <Text style={styles.modalSubtitle}>{ingredients[editingIngredient]?.name}</Text>
-            )}
-            
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Cantidad</Text>
-              <TextInput
-                value={editingAmount}
-                onChangeText={setEditingAmount}
-                style={styles.modalInput}
-                placeholder="Ej: 2, 1.5, etc"
-                keyboardType="decimal-pad"
-                placeholderTextColor="#ccc"
-              />
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Unidad</Text>
-              <ScrollView horizontal style={styles.unitsContainer}>
-                {units.map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.unitBtn, editingUnit === u && styles.unitBtnActive]}
-                    onPress={() => setEditingUnit(u)}
-                  >
-                    <Text style={[styles.unitBtnText, editingUnit === u && styles.unitBtnTextActive]}>
-                      {u || 'Sin unidad'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setEditingIngredient(null)}
-              >
-                <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSaveBtn}
-                onPress={saveAmount}
-              >
-                <Text style={styles.modalSaveText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -246,13 +252,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa', padding: 12 },
   section: { backgroundColor: '#fff', marginBottom: 16, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e0e0e0' },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8, textTransform: 'uppercase' },
+  smallLabel: { fontSize: 12, fontWeight: '600', color: '#666', marginBottom: 4 },
   input: { borderWidth: 1, borderColor: '#ddd', padding: 10, marginVertical: 0, borderRadius: 6, color: '#333', fontSize: 14 },
+  ingredientInputContainer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  unitPickerContainer: { flex: 0.8 },
+  unitPicker: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, height: 40, backgroundColor: '#f9f9f9' },
+  amountInputContainer: { flex: 0.8 },
+  amountInput: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 6, color: '#333', fontSize: 14 },
+  nameInputContainer: { flex: 1.4 },
+  nameInput: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 6, color: '#333', fontSize: 14 },
   addBtn: { backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, borderRadius: 6, marginTop: 8 },
   addBtnText: { color: '#fff', fontWeight: '600' },
   addBtnIcon: { fontSize: 18 },
+  cancelBtn: { backgroundColor: '#95a5a6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 10, borderRadius: 6, marginTop: 6 },
+  cancelBtnText: { color: '#fff', fontWeight: '600' },
+  cancelBtnIcon: { fontSize: 18 },
   ingredientRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' },
   ingredientContent: { flex: 1, paddingRight: 10 },
   ingredientText: { color: '#333', fontSize: 14 },
+  ingredientTextEditing: { color: '#4ECDC4', fontWeight: '600', backgroundColor: '#f0f9f8', padding: 4, borderRadius: 4 },
   deleteBtn: { padding: 4 },
   deleteIcon: { fontSize: 18, color: '#FF6B6B' },
   buttons: { flexDirection: 'column', gap: 8, marginTop: 12 },
@@ -262,22 +280,8 @@ const styles = StyleSheet.create({
   deleteRecipeBtn: { backgroundColor: '#FF6B6B', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 14, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   deleteBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   deleteBtnIcon: { fontSize: 18 },
-  // Modal styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '85%', maxWidth: 400, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 4 },
-  modalSubtitle: { fontSize: 14, color: '#666', marginBottom: 16, fontWeight: '600' },
-  modalSection: { marginBottom: 16 },
-  modalLabel: { fontSize: 13, fontWeight: '600', color: '#333', marginBottom: 8, textTransform: 'uppercase' },
-  modalInput: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 6, color: '#333', fontSize: 14 },
-  unitsContainer: { flexDirection: 'row', marginBottom: 8 },
-  unitBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', marginRight: 8, backgroundColor: '#f5f5f5' },
-  unitBtnActive: { backgroundColor: '#4ECDC4', borderColor: '#4ECDC4' },
-  unitBtnText: { color: '#333', fontSize: 13, fontWeight: '500' },
-  unitBtnTextActive: { color: '#fff', fontWeight: '600' },
-  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  modalCancelBtn: { flex: 1, paddingVertical: 10, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f5f5f5' },
-  modalCancelText: { color: '#333', fontWeight: '600', textAlign: 'center' },
-  modalSaveBtn: { flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: '#4ECDC4' },
-  modalSaveText: { color: '#fff', fontWeight: '600', textAlign: 'center' }
+  messageBox: { padding: 12, borderRadius: 8, marginBottom: 12, flexDirection: 'row', alignItems: 'center' },
+  messageError: { backgroundColor: '#fff3cd', borderLeftWidth: 4, borderLeftColor: '#ffc107' },
+  messageSuccess: { backgroundColor: '#d4edda', borderLeftWidth: 4, borderLeftColor: '#28a745' },
+  messageText: { fontSize: 14, fontWeight: '600', color: '#333', flex: 1 }
 });
