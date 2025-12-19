@@ -3,6 +3,7 @@ import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'reac
 import { supabase } from '../supabase';
 import { Logger } from '../utils/logger';
 import { ErrorHandler } from '../utils/errorHandler';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MODULE = 'LoginScreen';
 
@@ -66,6 +67,8 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Iniciando sesión..." />
+      
       {errorMessage ? (
         <View style={styles.errorToast}>
           <Text style={styles.errorToastText}>⚠️ {errorMessage}</Text>

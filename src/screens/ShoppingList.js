@@ -3,6 +3,7 @@ import { View, Text, FlatList, Button, TouchableOpacity, StyleSheet, Alert } fro
 import { getMealsForWeek, getAllRecipes, getPantry } from '../storage/storage';
 import { aggregateIngredients, subtractPantry } from '../utils/ingredients';
 import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MODULE = 'ShoppingList';
 
@@ -17,6 +18,7 @@ function startOfWeek(date = new Date()) {
 
 export default function ShoppingList() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     load();
@@ -24,6 +26,7 @@ export default function ShoppingList() {
 
   async function load() {
     try {
+      setLoading(true);
       Logger.info(MODULE, 'Loading shopping list');
       const start = startOfWeek();
       const mealsByDate = await getMealsForWeek(start);
@@ -47,6 +50,7 @@ export default function ShoppingList() {
       if (allIngredients.length === 0) {
         Logger.info(MODULE, 'No ingredients found for shopping list');
         setItems([]);
+        setLoading(false);
         return;
       }
       
@@ -55,15 +59,19 @@ export default function ShoppingList() {
       const final = subtractPantry(aggregated, pantry);
       Logger.info(MODULE, 'Shopping list loaded: ' + final.length + ' items');
       setItems(final);
+      setLoading(false);
     } catch (error) {
       Logger.error(MODULE, 'Failed to load shopping list', error.message);
       Alert.alert('❌ Error', 'No se pudo cargar la lista de compra');
       console.error('Error loading shopping list:', error);
+      setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Cargando lista..." />
+      
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Lista de la Compra</Text>
         <Text style={styles.subtitle}>Semana actual</Text>

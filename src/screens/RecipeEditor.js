@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Picker } from 'react-native';
 import { saveRecipe, getAllRecipes, deleteRecipe as storageDelete } from '../storage/storage';
 import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MODULE = 'RecipeEditor';
 
@@ -14,6 +15,7 @@ export default function RecipeEditor({ navigation, route }) {
   const [ingredients, setIngredients] = useState(editing?.ingredients ?? []);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState(null);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const units = ['', 'g', 'kg', 'ml', 'l', 'taza', 'cucharada', 'cucharadita', 'unidad', 'paquete'];
 
@@ -134,6 +136,7 @@ export default function RecipeEditor({ navigation, route }) {
       }))
     };
 
+    setLoading(true);
     try {
       await saveRecipe(recipeToSave);
       Logger.info(MODULE, editing ? 'Recipe updated' : 'Recipe created', recipeToSave.name);
@@ -142,6 +145,7 @@ export default function RecipeEditor({ navigation, route }) {
     } catch (error) {
       Logger.error(MODULE, 'Failed to save recipe', error.message);
       setMessage('Error al guardar la receta');
+      setLoading(false);
     }
   }
 
@@ -154,6 +158,7 @@ export default function RecipeEditor({ navigation, route }) {
   async function removeRecipe() {
     if (!editing) return;
     
+    setLoading(true);
     try {
       Logger.info(MODULE, 'Deleting recipe', editing.name);
       await storageDelete(editing.id);
@@ -163,11 +168,14 @@ export default function RecipeEditor({ navigation, route }) {
     } catch (error) {
       Logger.error(MODULE, 'Failed to delete recipe', error.message);
       setMessage('Error al eliminar la receta');
+      setLoading(false);
     }
   }
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Guardando..." />
+      
       {message ? (
         <View style={[styles.messageBox, message.includes('⚠️') ? styles.messageError : styles.messageSuccess]}>
           <Text style={styles.messageText}>{message}</Text>

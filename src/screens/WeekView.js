@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
 import WeeklySummary from '../components/WeeklySummary';
 import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MODULE = 'WeekView';
 
@@ -25,6 +26,7 @@ export default function WeekView({ navigation }) {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [viewMode, setViewMode] = useState('day'); // 'day' o 'week'
+  const [loading, setLoading] = useState(false);
   const focused = useIsFocused();
 
   useEffect(() => {
@@ -76,16 +78,21 @@ export default function WeekView({ navigation }) {
     navigation.navigate('Recipes', {
       pickFor: { date: dateStr, mealType },
       onPick: async (recipe) => {
-        Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
-        await saveMeal({ 
-          date: dateStr, 
-          mealType, 
-          recipeId: recipe.id, 
-          recipeName: recipe.name, 
-          ingredients: recipe.ingredients 
-        });
-        Logger.info(MODULE, 'Meal saved', dateStr + ' - ' + mealType);
-        load();
+        setLoading(true);
+        try {
+          Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
+          await saveMeal({ 
+            date: dateStr, 
+            mealType, 
+            recipeId: recipe.id, 
+            recipeName: recipe.name, 
+            ingredients: recipe.ingredients 
+          });
+          Logger.info(MODULE, 'Meal saved', dateStr + ' - ' + mealType);
+          await load();
+        } finally {
+          setLoading(false);
+        }
       }
     });
   }
@@ -106,6 +113,7 @@ export default function WeekView({ navigation }) {
 
   async function confirmDelete() {
     if (!selectedMeal) return;
+    setLoading(true);
     try {
       Logger.info(MODULE, 'Deleting meal', selectedMeal.dateStr + ' - ' + selectedMeal.mealType);
       await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
@@ -117,6 +125,8 @@ export default function WeekView({ navigation }) {
       Logger.error(MODULE, 'Failed to delete meal', error.message);
       console.error('Error deleting meal:', error);
       Alert.alert('❌ Error', 'No se pudo eliminar la comida');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -194,6 +204,8 @@ export default function WeekView({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Cargando..." />
+      
       {viewMode === 'day' ? (
         <View style={styles.contentContainer}>
           {renderDayLarge()}
