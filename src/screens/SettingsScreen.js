@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'rea
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabase';
 import { getUserSettings, saveUserSettings } from '../storage/storage';
+import { Logger } from '../utils/logger';
+
+const MODULE = 'SettingsScreen';
 
 const PRESET_OPTIONS = [
   {
@@ -42,26 +45,30 @@ export default function SettingsScreen({ navigation }) {
 
   async function loadSettings() {
     try {
+      Logger.info(MODULE, 'Loading settings');
       const settings = await getUserSettings();
       setSelectedOption(settings.meal_count);
+      Logger.info(MODULE, 'Settings loaded: ' + settings.meal_count + ' meals');
       setLoading(false);
     } catch (error) {
-      console.error('Error loading settings:', error);
+      Logger.error(MODULE, 'Failed to load settings', error.message);
       setLoading(false);
     }
   }
 
   async function handleSelectOption(option) {
     try {
+      Logger.info(MODULE, 'Saving settings: ' + option.label);
       setSelectedOption(option.id);
       await saveUserSettings({
         meal_count: option.id,
         meal_names: option.meals
       });
-      setMessage(`✓ Configuración actualizada a ${option.label}`);
+      Logger.info(MODULE, 'Settings saved: ' + option.label);
+      setMessage('Configuracion actualizada a ' + option.label);
     } catch (error) {
-      console.error('Error saving settings:', error);
-      setMessage('❌ No se pudo guardar la configuración');
+      Logger.error(MODULE, 'Failed to save settings', error.message);
+      setMessage('No se pudo guardar la configuracion');
     }
   }
 
@@ -72,32 +79,32 @@ export default function SettingsScreen({ navigation }) {
   async function confirmLogout() {
     setLoggingOut(true);
     try {
-      console.log('SettingsScreen: Iniciando logout...');
+      Logger.info(MODULE, 'Starting logout');
       
       // Limpiar cache local
       await AsyncStorage.removeItem('mp_recipes_v1');
       await AsyncStorage.removeItem('mp_meals_v1');
       await AsyncStorage.removeItem('mp_pantry_v1');
       await AsyncStorage.removeItem('user_settings');
-      console.log('SettingsScreen: Cache limpiado');
+      Logger.info(MODULE, 'Cache cleared');
       
-      // Cerrar sesión en Supabase
+      // Cerrar sesion en Supabase
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('SettingsScreen: Error en logout:', error);
-        setMessage('❌ ' + (error.message || 'No se pudo cerrar sesión'));
+        Logger.error(MODULE, 'Logout failed', error.message);
+        setMessage('Error: ' + (error.message || 'No se pudo cerrar sesion'));
         setShowLogoutConfirm(false);
         setLoggingOut(false);
         return;
       }
       
-      console.log('SettingsScreen: Logout completado');
+      Logger.info(MODULE, 'Logout successful');
       setShowLogoutConfirm(false);
-      // La navegación se manejará automáticamente a través del onAuthStateChange en App.js
+      // La navegacion se manejara automaticamente a traves del onAuthStateChange en App.js
     } catch (error) {
-      console.error('SettingsScreen: Exception en logout:', error);
-      setMessage('❌ ' + (error?.message || 'Algo salió mal al cerrar sesión'));
+      Logger.error(MODULE, 'Logout exception', error.message);
+      setMessage('Error: ' + (error?.message || 'Algo salio mal al cerrar sesion'));
       setShowLogoutConfirm(false);
       setLoggingOut(false);
     }

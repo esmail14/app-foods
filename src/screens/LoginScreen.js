@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../supabase';
+import { Logger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandler';
+
+const MODULE = 'LoginScreen';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -9,24 +13,31 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
+      Logger.warn(MODULE, 'Login attempt with missing credentials');
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
 
     setLoading(true);
     try {
+      Logger.info(MODULE, 'Login attempt for: ' + email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Logger.error(MODULE, 'Login failed', error.message);
+        const userMsg = ErrorHandler.getUserMessage(error);
+        Alert.alert(userMsg.message, userMsg.description);
       } else {
+        Logger.info(MODULE, 'Login successful for: ' + email);
         navigation.replace('WeekView');
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Logger.error(MODULE, 'Login exception', error.message);
+      const userMsg = ErrorHandler.getUserMessage(error);
+      Alert.alert(userMsg.message, userMsg.description);
     } finally {
       setLoading(false);
     }
