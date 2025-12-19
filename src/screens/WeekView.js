@@ -5,6 +5,9 @@ import { useIsFocused } from '@react-navigation/native';
 import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
 import WeeklySummary from '../components/WeeklySummary';
+import { Logger } from '../utils/logger';
+
+const MODULE = 'WeekView';
 
 function startOfWeek(date = new Date()) {
   const d = new Date(date);
@@ -33,18 +36,27 @@ export default function WeekView({ navigation }) {
 
   async function loadSettings() {
     try {
+      Logger.info(MODULE, 'Loading meal settings');
       const settings = await getUserSettings();
       const mealTypesArray = settings.meal_names.map(m => m.toLowerCase());
       setMealTypes(mealTypesArray);
+      Logger.info(MODULE, 'Settings loaded: ' + mealTypesArray.length + ' meal types');
     } catch (error) {
+      Logger.error(MODULE, 'Failed to load settings', error.message);
       console.error('Error loading meal types:', error);
     }
   }
 
   async function load() {
-    const start = startOfWeek();
-    const data = await getMealsForWeek(start);
-    setMealsByDate(data);
+    try {
+      Logger.info(MODULE, 'Loading meals for week');
+      const start = startOfWeek();
+      const data = await getMealsForWeek(start);
+      setMealsByDate(data);
+      Logger.info(MODULE, 'Weekly meals loaded');
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to load weekly meals', error.message);
+    }
   }
 
   function getTodayString() {
@@ -60,9 +72,11 @@ export default function WeekView({ navigation }) {
   }
 
   function openRecipePicker(dateStr, mealType) {
+    Logger.info(MODULE, 'Opening recipe picker', dateStr + ' - ' + mealType);
     navigation.navigate('Recipes', {
       pickFor: { date: dateStr, mealType },
       onPick: async (recipe) => {
+        Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
         await saveMeal({ 
           date: dateStr, 
           mealType, 
@@ -70,6 +84,7 @@ export default function WeekView({ navigation }) {
           recipeName: recipe.name, 
           ingredients: recipe.ingredients 
         });
+        Logger.info(MODULE, 'Meal saved', dateStr + ' - ' + mealType);
         load();
       }
     });
@@ -92,11 +107,14 @@ export default function WeekView({ navigation }) {
   async function confirmDelete() {
     if (!selectedMeal) return;
     try {
+      Logger.info(MODULE, 'Deleting meal', selectedMeal.dateStr + ' - ' + selectedMeal.mealType);
       await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
+      Logger.info(MODULE, 'Meal deleted successfully', selectedMeal.meal.recipeName);
       setShowConfirmDelete(false);
       setSelectedMeal(null);
       await load();
     } catch (error) {
+      Logger.error(MODULE, 'Failed to delete meal', error.message);
       console.error('Error deleting meal:', error);
       Alert.alert('❌ Error', 'No se pudo eliminar la comida');
     }

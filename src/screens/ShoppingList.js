@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Button, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { getMealsForWeek, getAllRecipes, getPantry } from '../storage/storage';
 import { aggregateIngredients, subtractPantry } from '../utils/ingredients';
+import { Logger } from '../utils/logger';
+
+const MODULE = 'ShoppingList';
 
 function startOfWeek(date = new Date()) {
   const d = new Date(date);
@@ -21,6 +24,7 @@ export default function ShoppingList() {
 
   async function load() {
     try {
+      Logger.info(MODULE, 'Loading shopping list');
       const start = startOfWeek();
       const mealsByDate = await getMealsForWeek(start);
       
@@ -41,6 +45,7 @@ export default function ShoppingList() {
       
       // Validar que haya ingredientes
       if (allIngredients.length === 0) {
+        Logger.info(MODULE, 'No ingredients found for shopping list');
         setItems([]);
         return;
       }
@@ -48,8 +53,10 @@ export default function ShoppingList() {
       const aggregated = aggregateIngredients(allIngredients);
       const pantry = await getPantry();
       const final = subtractPantry(aggregated, pantry);
+      Logger.info(MODULE, 'Shopping list loaded: ' + final.length + ' items');
       setItems(final);
     } catch (error) {
+      Logger.error(MODULE, 'Failed to load shopping list', error.message);
       Alert.alert('❌ Error', 'No se pudo cargar la lista de compra');
       console.error('Error loading shopping list:', error);
     }

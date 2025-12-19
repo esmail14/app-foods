@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../supabase';
+import { Logger } from '../utils/logger';
+
+const MODULE = 'Storage';
 
 // Keys
 const RECIPES_KEY = 'mp_recipes_v1';
@@ -17,8 +20,12 @@ async function getCurrentUser() {
 
 export async function getAllRecipes() {
   try {
+    Logger.debug(MODULE, 'Fetching all recipes');
     const user = await getCurrentUser();
-    if (!user) return [];
+    if (!user) {
+      Logger.warn(MODULE, 'No user logged in, returning empty recipes');
+      return [];
+    }
 
     // Fetch from Supabase
     const { data, error } = await supabase
@@ -37,8 +44,10 @@ export async function getAllRecipes() {
 
     // Cache locally
     await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    Logger.info(MODULE, 'Recipes fetched: ' + recipes.length + ' recipes');
     return recipes;
   } catch (error) {
+    Logger.error(MODULE, 'Error fetching recipes', error.message);
     console.error('Error fetching recipes:', error);
     // Fallback to local cache
     const raw = await AsyncStorage.getItem(RECIPES_KEY);
@@ -48,6 +57,7 @@ export async function getAllRecipes() {
 
 export async function saveRecipe(recipe) {
   try {
+    Logger.info(MODULE, 'Saving recipe', recipe.name);
     const user = await getCurrentUser();
     if (!user) throw new Error('No user logged in');
 
@@ -60,6 +70,7 @@ export async function saveRecipe(recipe) {
 
     if (recipe.id) {
       // Update existing
+      Logger.debug(MODULE, 'Updating existing recipe', recipe.id);
       const { error } = await supabase
         .from('recipes')
         .update({
@@ -70,20 +81,24 @@ export async function saveRecipe(recipe) {
         .eq('id', recipeData.id);
 
       if (error) throw error;
+      Logger.info(MODULE, 'Recipe updated', recipe.name);
     } else {
       // Insert new
+      Logger.debug(MODULE, 'Creating new recipe', recipe.name);
       const { error } = await supabase
         .from('recipes')
         .insert([recipeData]);
 
       if (error) throw error;
       recipe.id = recipeData.id;
+      Logger.info(MODULE, 'Recipe created', recipe.name);
     }
 
     // Update local cache
     const all = await getAllRecipes();
     await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
   } catch (error) {
+    Logger.error(MODULE, 'Error saving recipe', error.message);
     console.error('Error saving recipe:', error);
     throw error;
   }
@@ -91,6 +106,7 @@ export async function saveRecipe(recipe) {
 
 export async function deleteRecipe(id) {
   try {
+    Logger.info(MODULE, 'Deleting recipe', id);
     const user = await getCurrentUser();
     if (!user) throw new Error('No user logged in');
 
@@ -105,7 +121,9 @@ export async function deleteRecipe(id) {
     // Update local cache
     const all = await getAllRecipes();
     await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+    Logger.info(MODULE, 'Recipe deleted successfully', id);
   } catch (error) {
+    Logger.error(MODULE, 'Error deleting recipe', error.message);
     console.error('Error deleting recipe:', error);
     throw error;
   }
@@ -115,8 +133,12 @@ export async function deleteRecipe(id) {
 
 export async function getMealsForWeek(startOfWeek) {
   try {
+    Logger.debug(MODULE, 'Fetching meals for week');
     const user = await getCurrentUser();
-    if (!user) return {};
+    if (!user) {
+      Logger.warn(MODULE, 'No user logged in, returning empty meals');
+      return {};
+    }
 
     // Fetch all meals for this week
     const { data, error } = await supabase
@@ -142,8 +164,10 @@ export async function getMealsForWeek(startOfWeek) {
 
     // Cache locally
     await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    Logger.info(MODULE, 'Weekly meals fetched');
     return mealsMap;
   } catch (error) {
+    Logger.error(MODULE, 'Error fetching meals', error.message);
     console.error('Error fetching meals:', error);
     // Fallback to local cache
     const raw = await AsyncStorage.getItem(MEALS_KEY);
@@ -176,15 +200,20 @@ export async function addMealToDay(date, mealType, recipeId, recipeName, ingredi
   }
 }
 
-// Alias for backward compatibility
 export async function saveMeal(mealEntry) {
-  return addMealToDay(
-    mealEntry.date,
-    mealEntry.mealType,
-    mealEntry.recipeId,
-    mealEntry.recipeName,
-    mealEntry.ingredients
-  );
+  try {
+    Logger.info(MODULE, 'Saving meal', mealEntry.date + ' - ' + mealEntry.mealType);
+    return await addMealToDay(
+      mealEntry.date,
+      mealEntry.mealType,
+      mealEntry.recipeId,
+      mealEntry.recipeName,
+      mealEntry.ingredients
+    );
+  } catch (error) {
+    Logger.error(MODULE, 'Error saving meal', error.message);
+    throw error;
+  }
 }
 
 export async function deleteMealFromDay(date, mealId) {
@@ -212,6 +241,7 @@ export async function deleteMealFromDay(date, mealId) {
 // Alias for backward compatibility
 export async function deleteMeal(date, mealType) {
   try {
+    Logger.info(MODULE, 'Deleting meal', date + ' - ' + mealType);
     const user = await getCurrentUser();
     if (!user) throw new Error('No user logged in');
 
@@ -227,7 +257,9 @@ export async function deleteMeal(date, mealType) {
     // Update local cache
     const mealsMap = await getMealsForWeek(date);
     await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    Logger.info(MODULE, 'Meal deleted successfully', date + ' - ' + mealType);
   } catch (error) {
+    Logger.error(MODULE, 'Error deleting meal', error.message);
     console.error('Error deleting meal:', error);
     throw error;
   }
@@ -237,8 +269,12 @@ export async function deleteMeal(date, mealType) {
 
 export async function getUserSettings() {
   try {
+    Logger.debug(MODULE, 'Fetching user settings');
     const user = await getCurrentUser();
-    if (!user) return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
+    if (!user) {
+      Logger.warn(MODULE, 'No user logged in, returning default settings');
+      return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
+    }
 
     // Fetch from Supabase
     const { data, error } = await supabase
@@ -253,6 +289,7 @@ export async function getUserSettings() {
     }
 
     if (data) {
+      Logger.info(MODULE, 'User settings retrieved');
       return {
         meal_count: data.meal_count || 3,
         meal_names: data.meal_names || ['Desayuno', 'Almuerzo', 'Cena']
@@ -260,8 +297,10 @@ export async function getUserSettings() {
     }
 
     // If no settings exist, return defaults
+    Logger.debug(MODULE, 'No settings found, returning defaults');
     return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
   } catch (error) {
+    Logger.error(MODULE, 'Error fetching user settings', error.message);
     console.error('Error fetching user settings:', error);
     // Return defaults on error
     return { meal_count: 3, meal_names: ['Desayuno', 'Almuerzo', 'Cena'] };
@@ -270,6 +309,7 @@ export async function getUserSettings() {
 
 export async function saveUserSettings(settings) {
   try {
+    Logger.info(MODULE, 'Saving user settings');
     const user = await getCurrentUser();
     if (!user) throw new Error('No user logged in');
 
@@ -286,7 +326,9 @@ export async function saveUserSettings(settings) {
       );
 
     if (error) throw error;
+    Logger.info(MODULE, 'User settings saved successfully');
   } catch (error) {
+    Logger.error(MODULE, 'Error saving user settings', error.message);
     console.error('Error saving user settings:', error);
     throw error;
   }

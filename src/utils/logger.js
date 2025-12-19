@@ -17,16 +17,6 @@ const MIN_LOG_LEVEL = IS_PRODUCTION ? LOG_LEVELS.WARN : LOG_LEVELS.DEBUG;
 const LOGS_STORAGE_KEY = 'app_logs_v1';
 const MAX_LOGS = 1000; // Rotate after 1000 logs
 
-function getTimestamp() {
-  const now = new Date();
-  return now.toLocaleTimeString('es-ES', { 
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-}
-
 function getFullTimestamp() {
   const now = new Date();
   return now.toISOString();
@@ -53,18 +43,9 @@ async function saveLog(logEntry) {
 function log(level, module, message, data = null) {
   if (LOG_LEVELS[level] < MIN_LOG_LEVEL) return;
 
-  const time = getTimestamp();
   const fullTime = getFullTimestamp();
-  const prefix = `[${time}] [${level}] [${module}]`;
 
-  // Log to console
-  if (data) {
-    console.log(`${prefix} ${message}`, data);
-  } else {
-    console.log(`${prefix} ${message}`);
-  }
-
-  // Save to file
+  // Save to file (no console output)
   const logEntry = {
     timestamp: fullTime,
     level,
