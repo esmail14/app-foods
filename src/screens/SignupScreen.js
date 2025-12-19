@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../supabase';
+import { Logger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandler';
+
+const MODULE = 'SignupScreen';
 
 export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,41 +24,57 @@ export default function SignupScreen({ navigation }) {
   };
 
   const handleSignup = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    // Validaciones
     if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      Logger.warn(MODULE, 'Signup attempt with missing fields');
+      setErrorMessage('Por favor completa todos los campos');
       return;
     }
 
     if (!validateEmail(email)) {
-      Alert.alert('Error', 'Email inválido');
+      Logger.warn(MODULE, 'Invalid email format', email);
+      setErrorMessage('Email inválido. Debe tener formato: usuario@dominio.com');
       return;
     }
 
     if (!validatePassword(password)) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      Logger.warn(MODULE, 'Password too short');
+      setErrorMessage('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      Logger.warn(MODULE, 'Passwords do not match');
+      setErrorMessage('Las contraseñas no coinciden');
       return;
     }
 
     setLoading(true);
     try {
+      Logger.info(MODULE, 'Signup attempt for: ' + email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Logger.error(MODULE, 'Signup failed', error.message);
+        const userMsg = ErrorHandler.getUserMessage(error);
+        setErrorMessage(userMsg.description);
       } else {
-        Alert.alert('Éxito', 'Cuenta creada. Por favor inicia sesión');
-        navigation.replace('Login');
+        Logger.info(MODULE, 'Signup successful for: ' + email);
+        setSuccessMessage('Cuenta creada exitosamente. Redirigiendo...');
+        setTimeout(() => {
+          navigation.replace('Login');
+        }, 2000);
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Logger.error(MODULE, 'Signup exception', error.message);
+      const userMsg = ErrorHandler.getUserMessage(error);
+      setErrorMessage(userMsg.description);
     } finally {
       setLoading(false);
     }
@@ -60,6 +82,18 @@ export default function SignupScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {errorMessage ? (
+        <View style={styles.errorToast}>
+          <Text style={styles.errorToastText}>⚠️ {errorMessage}</Text>
+        </View>
+      ) : null}
+
+      {successMessage ? (
+        <View style={styles.successToast}>
+          <Text style={styles.successToastText}>✓ {successMessage}</Text>
+        </View>
+      ) : null}
+      
       <Text style={styles.title}>Crear Cuenta</Text>
       
       <TextInput
@@ -120,6 +154,40 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
     color: '#333',
+  },
+  errorToast: {
+    backgroundColor: '#E74C3C',
+    padding: 14,
+    paddingTop: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  errorToastText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  successToast: {
+    backgroundColor: '#27AE60',
+    padding: 14,
+    paddingTop: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  successToastText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   input: {
     borderWidth: 1,
