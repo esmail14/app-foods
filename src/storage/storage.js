@@ -39,7 +39,9 @@ export async function getAllRecipes() {
     const recipes = (data || []).map(r => ({
       id: r.id,
       name: r.name,
-      ingredients: r.ingredients || []
+      ingredients: r.ingredients || [],
+      is_favorite: r.is_favorite || false,
+      created_at: r.created_at
     }));
 
     // Cache locally
@@ -65,6 +67,7 @@ export async function saveRecipe(recipe) {
       id: recipe.id || uuidv4(),
       name: recipe.name,
       ingredients: recipe.ingredients || [],
+      is_favorite: recipe.is_favorite || false,
       user_id: user.id
     };
 
@@ -76,6 +79,7 @@ export async function saveRecipe(recipe) {
         .update({
           name: recipeData.name,
           ingredients: recipeData.ingredients,
+          is_favorite: recipeData.is_favorite,
           updated_at: new Date().toISOString()
         })
         .eq('id', recipeData.id);
@@ -129,6 +133,38 @@ export async function deleteRecipe(id) {
   }
 }
 
+export async function updateRecipeFavorite(id, isFavorite) {
+  try {
+    Logger.info(MODULE, 'Updating recipe favorite', { id, isFavorite });
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('recipes')
+      .update({ is_favorite: isFavorite })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      // Si la columna no existe, solo actualizar en memoria (fallback)
+      if (error.message && error.message.includes('is_favorite')) {
+        Logger.warn(MODULE, 'Column is_favorite does not exist in database yet. Update saved locally only.');
+        return;
+      }
+      throw error;
+    }
+
+    // Update local cache
+    const all = await getAllRecipes();
+    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+    Logger.info(MODULE, 'Recipe favorite updated', { id, isFavorite });
+  } catch (error) {
+    Logger.error(MODULE, 'Error updating recipe favorite', error.message);
+    console.error('Error updating recipe favorite:', error);
+    throw error;
+  }
+}
+
 // MEALS
 
 export async function getMealsForWeek(startOfWeek) {
@@ -140,11 +176,23 @@ export async function getMealsForWeek(startOfWeek) {
       return {};
     }
 
-    // Fetch all meals for this week
+    // Calculate week range (Monday to Sunday)
+    const weekStart = new Date(startOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+    // Fetch meals for this week only
     const { data, error } = await supabase
       .from('meals')
       .select('*, recipes(id, name, ingredients)')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .gte('day', weekStartStr)
+      .lte('day', weekEndStr);
 
     if (error) throw error;
 
@@ -261,6 +309,103 @@ export async function deleteMeal(date, mealType) {
   } catch (error) {
     Logger.error(MODULE, 'Error deleting meal', error.message);
     console.error('Error deleting meal:', error);
+    throw error;
+  }
+}
+
+export async function clearWeekMeals(startOfWeek) {
+  try {
+    Logger.info(MODULE, 'Clearing all meals for week');
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    // Calculate week range (Monday to Sunday)
+    const weekStart = new Date(startOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+    // Delete all meals for this week
+    const { error } = await supabase
+      .from('meals')
+      .delete()
+      .eq('user_id', user.id)
+      .gte('day', weekStartStr)
+      .lte('day', weekEndStr);
+
+    if (error) throw error;
+
+    // Update local cache
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify({}));
+    Logger.info(MODULE, 'Week cleared successfully');
+  } catch (error) {
+    Logger.error(MODULE, 'Error clearing week', error.message);
+    console.error('Error clearing week:', error);
+    throw error;
+  }
+}
+
+export async function duplicateWeek(fromDate, toDate) {
+  try {
+    Logger.info(MODULE, 'Duplicating week', { fromDate, toDate });
+    const user = await getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+
+    // Get all meals from source week
+    const sourceMeals = await getMealsForWeek(fromDate);
+    
+    // Calculate day offset
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    const dayOffset = Math.floor((to - from) / (1000 * 60 * 60 * 24));
+
+    // Copy meals to destination week
+    const mealsToInsert = [];
+    for (const dateStr in sourceMeals) {
+      const dayMeals = sourceMeals[dateStr];
+      for (const mealType in dayMeals) {
+        const meal = dayMeals[mealType];
+        if (meal?.recipeId) {
+          const sourceDate = new Date(dateStr);
+          const destDate = new Date(sourceDate);
+          destDate.setDate(destDate.getDate() + dayOffset);
+          const destDateStr = destDate.toISOString().slice(0, 10);
+
+          mealsToInsert.push({
+            user_id: user.id,
+            day: destDateStr,
+            meal_type: mealType,
+            recipe_id: meal.recipeId
+          });
+        }
+      }
+    }
+
+    if (mealsToInsert.length === 0) {
+      Logger.warn(MODULE, 'No meals to duplicate');
+      return { count: 0 };
+    }
+
+    // Insert all meals
+    const { error } = await supabase
+      .from('meals')
+      .insert(mealsToInsert);
+
+    if (error) throw error;
+
+    // Update local cache
+    const mealsMap = await getMealsForWeek(toDate);
+    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    
+    Logger.info(MODULE, 'Week duplicated successfully', { count: mealsToInsert.length });
+    return { count: mealsToInsert.length };
+  } catch (error) {
+    Logger.error(MODULE, 'Error duplicating week', error.message);
+    console.error('Error duplicating week:', error);
     throw error;
   }
 }
