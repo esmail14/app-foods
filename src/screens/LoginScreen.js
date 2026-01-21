@@ -1,32 +1,65 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../supabase';
+import { Logger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandler';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+const MODULE = 'LoginScreen';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleLogin = async () => {
+    setErrorMessage('');
+
+    // Validaciones
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      Logger.warn(MODULE, 'Login attempt with missing credentials');
+      setErrorMessage('Por favor completa email y contraseña');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Logger.warn(MODULE, 'Invalid email format', email);
+      setErrorMessage('Email inválido. Debe tener formato: usuario@dominio.com');
+      return;
+    }
+
+    if (password.length < 6) {
+      Logger.warn(MODULE, 'Password too short');
+      setErrorMessage('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     setLoading(true);
     try {
+      Logger.info(MODULE, 'Login attempt for: ' + email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Logger.error(MODULE, 'Login failed', error.message);
+        const userMsg = ErrorHandler.getUserMessage(error);
+        setErrorMessage(userMsg.description);
       } else {
+        Logger.info(MODULE, 'Login successful for: ' + email);
         navigation.replace('WeekView');
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Logger.error(MODULE, 'Login exception', error.message);
+      const userMsg = ErrorHandler.getUserMessage(error);
+      setErrorMessage(userMsg.description);
     } finally {
       setLoading(false);
     }
@@ -34,6 +67,14 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Iniciando sesión..." />
+      
+      {errorMessage ? (
+        <View style={styles.errorToast}>
+          <Text style={styles.errorToastText}>⚠️ {errorMessage}</Text>
+        </View>
+      ) : null}
+      
       <Text style={styles.title}>Iniciar Sesión</Text>
       
       <TextInput
@@ -84,6 +125,23 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
     color: '#333',
+  },
+  errorToast: {
+    backgroundColor: '#E74C3C',
+    padding: 14,
+    paddingTop: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  errorToastText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   input: {
     borderWidth: 1,

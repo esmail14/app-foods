@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Button, Alert, Modal } from 'react-native';
-import { getMealsForWeek, saveMeal, deleteMeal, getUserSettings } from '../storage/storage';
+import { getMealsForWeek, saveMeal, deleteMeal, getUserSettings, duplicateWeek, clearWeekMeals } from '../storage/storage';
 import { useIsFocused } from '@react-navigation/native';
 import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
 import WeeklySummary from '../components/WeeklySummary';
+import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+const MODULE = 'WeekView';
 
 function startOfWeek(date = new Date()) {
   const d = new Date(date);
@@ -22,6 +26,10 @@ export default function WeekView({ navigation }) {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [viewMode, setViewMode] = useState('day'); // 'day' o 'week'
+  const [loading, setLoading] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [selectedWeekToDuplicate, setSelectedWeekToDuplicate] = useState(null);
+  const [showClearWeekModal, setShowClearWeekModal] = useState(false);
   const focused = useIsFocused();
 
   useEffect(() => {
@@ -33,18 +41,27 @@ export default function WeekView({ navigation }) {
 
   async function loadSettings() {
     try {
+      Logger.info(MODULE, 'Loading meal settings');
       const settings = await getUserSettings();
       const mealTypesArray = settings.meal_names.map(m => m.toLowerCase());
       setMealTypes(mealTypesArray);
+      Logger.info(MODULE, 'Settings loaded: ' + mealTypesArray.length + ' meal types');
     } catch (error) {
+      Logger.error(MODULE, 'Failed to load settings', error.message);
       console.error('Error loading meal types:', error);
     }
   }
 
   async function load() {
-    const start = startOfWeek();
-    const data = await getMealsForWeek(start);
-    setMealsByDate(data);
+    try {
+      Logger.info(MODULE, 'Loading meals for week');
+      const start = startOfWeek();
+      const data = await getMealsForWeek(start);
+      setMealsByDate(data);
+      Logger.info(MODULE, 'Weekly meals loaded');
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to load weekly meals', error.message);
+    }
   }
 
   function getTodayString() {
@@ -60,17 +77,25 @@ export default function WeekView({ navigation }) {
   }
 
   function openRecipePicker(dateStr, mealType) {
+    Logger.info(MODULE, 'Opening recipe picker', dateStr + ' - ' + mealType);
     navigation.navigate('Recipes', {
       pickFor: { date: dateStr, mealType },
       onPick: async (recipe) => {
-        await saveMeal({ 
-          date: dateStr, 
-          mealType, 
-          recipeId: recipe.id, 
-          recipeName: recipe.name, 
-          ingredients: recipe.ingredients 
-        });
-        load();
+        setLoading(true);
+        try {
+          Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
+          await saveMeal({ 
+            date: dateStr, 
+            mealType, 
+            recipeId: recipe.id, 
+            recipeName: recipe.name, 
+            ingredients: recipe.ingredients 
+          });
+          Logger.info(MODULE, 'Meal saved', dateStr + ' - ' + mealType);
+          await load();
+        } finally {
+          setLoading(false);
+        }
       }
     });
   }
@@ -91,14 +116,20 @@ export default function WeekView({ navigation }) {
 
   async function confirmDelete() {
     if (!selectedMeal) return;
+    setLoading(true);
     try {
+      Logger.info(MODULE, 'Deleting meal', selectedMeal.dateStr + ' - ' + selectedMeal.mealType);
       await deleteMeal(selectedMeal.dateStr, selectedMeal.mealType);
+      Logger.info(MODULE, 'Meal deleted successfully', selectedMeal.meal.recipeName);
       setShowConfirmDelete(false);
       setSelectedMeal(null);
       await load();
     } catch (error) {
+      Logger.error(MODULE, 'Failed to delete meal', error.message);
       console.error('Error deleting meal:', error);
       Alert.alert('❌ Error', 'No se pudo eliminar la comida');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -114,6 +145,44 @@ export default function WeekView({ navigation }) {
     } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Error', error?.message || 'No se pudo cerrar sesión');
+    }
+  }
+
+  async function handleDuplicateWeek(fromDate) {
+    const monday = startOfWeek();
+    const mondayStr = monday.toISOString().slice(0, 10);
+    
+    setLoading(true);
+    try {
+      Logger.info(MODULE, 'Duplicating week', { fromDate, toDate: mondayStr });
+      const result = await duplicateWeek(fromDate, mondayStr);
+      Logger.info(MODULE, 'Week duplicated', { mealsAdded: result.count });
+      setShowDuplicateModal(false);
+      await load();
+      Alert.alert('✅ Listo', `Se copiaron ${result.count} comidas a esta semana`);
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to duplicate week', error.message);
+      Alert.alert('❌ Error', 'No se pudo duplicar la semana');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClearWeek() {
+    const monday = startOfWeek();
+    setLoading(true);
+    try {
+      Logger.info(MODULE, 'Clearing week');
+      await clearWeekMeals(monday);
+      Logger.info(MODULE, 'Week cleared successfully');
+      setShowClearWeekModal(false);
+      await load();
+      Alert.alert('✅ Listo', 'Se eliminaron todas las comidas de la semana');
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to clear week', error.message);
+      Alert.alert('❌ Error', 'No se pudo limpiar la semana');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -176,6 +245,8 @@ export default function WeekView({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Cargando..." />
+      
       {viewMode === 'day' ? (
         <View style={styles.contentContainer}>
           {renderDayLarge()}
@@ -200,6 +271,14 @@ export default function WeekView({ navigation }) {
       )}
 
       <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowDuplicateModal(true)}>
+          <Text style={styles.actionBtnIcon}>📋</Text>
+          <Text style={styles.actionBtnText}>Duplicar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowClearWeekModal(true)}>
+          <Text style={styles.actionBtnIcon}>🗑️</Text>
+          <Text style={styles.actionBtnText}>Limpiar</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ShoppingList')}>
           <Text style={styles.actionBtnIcon}>🛒</Text>
           <Text style={styles.actionBtnText}>Lista</Text>
@@ -278,6 +357,87 @@ export default function WeekView({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modal para duplicar semana */}
+      <Modal
+        visible={showDuplicateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDuplicateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>📋 Duplicar semana</Text>
+            <Text style={styles.duplicateModalDescription}>
+              Selecciona la semana anterior que deseas copiar:
+            </Text>
+            
+            <View style={styles.weeksList}>
+              {[...Array(4)].map((_, i) => {
+                const weeksAgo = i + 1;
+                const date = new Date();
+                const monday = startOfWeek(date);
+                const sourceMonday = new Date(monday);
+                sourceMonday.setDate(sourceMonday.getDate() - weeksAgo * 7);
+                const sourceMondayStr = sourceMonday.toISOString().slice(0, 10);
+                const endDate = new Date(sourceMonday);
+                endDate.setDate(endDate.getDate() + 6);
+
+                return (
+                  <TouchableOpacity 
+                    key={i}
+                    style={styles.weekOption}
+                    onPress={() => handleDuplicateWeek(sourceMondayStr)}
+                  >
+                    <Text style={styles.weekOptionText}>
+                      Semana {weeksAgo} ({sourceMonday.getDate()}/{sourceMonday.getMonth() + 1} - {endDate.getDate()}/{endDate.getMonth() + 1})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.optionBtnCancel}
+              onPress={() => setShowDuplicateModal(false)}
+            >
+              <Text style={styles.optionTextCancel}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para limpiar semana */}
+      <Modal
+        visible={showClearWeekModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowClearWeekModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🗑️ Limpiar semana</Text>
+            <Text style={styles.confirmText}>
+              ¿Estás seguro de que deseas eliminar todas las comidas de esta semana? Esta acción no se puede deshacer.
+            </Text>
+            
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity 
+                style={styles.confirmCancelBtn} 
+                onPress={() => setShowClearWeekModal(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.confirmDeleteBtn} 
+                onPress={handleClearWeek}
+              >
+                <Text style={styles.confirmDeleteText}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -318,5 +478,9 @@ const styles = StyleSheet.create({
   confirmCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f5f5f5' },
   confirmCancelText: { fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center' },
   confirmDeleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: '#DC2626' },
-  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff', textAlign: 'center' }
+  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff', textAlign: 'center' },
+  duplicateModalDescription: { fontSize: 14, color: '#666', marginBottom: 16, lineHeight: 20 },
+  weeksList: { marginBottom: 16 },
+  weekOption: { backgroundColor: '#f5f5f5', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e0e0e0' },
+  weekOptionText: { fontSize: 14, fontWeight: '500', color: '#333' }
 });

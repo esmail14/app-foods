@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Picker } from 'react-native';
 import { saveRecipe, getAllRecipes, deleteRecipe as storageDelete } from '../storage/storage';
+import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+const MODULE = 'RecipeEditor';
 
 export default function RecipeEditor({ navigation, route }) {
   const editing = route.params?.recipe;
@@ -11,6 +15,7 @@ export default function RecipeEditor({ navigation, route }) {
   const [ingredients, setIngredients] = useState(editing?.ingredients ?? []);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState(null);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const units = ['', 'g', 'kg', 'ml', 'l', 'taza', 'cucharada', 'cucharadita', 'unidad', 'paquete'];
 
@@ -28,18 +33,21 @@ export default function RecipeEditor({ navigation, route }) {
   function addIngredient() {
     // Validar que haya nombre
     if (!ingredientName.trim()) {
+      Logger.warn(MODULE, 'Attempted to add ingredient without name');
       setMessage('⚠️ Por favor ingresa un nombre de ingrediente');
       return;
     }
 
     // Validar que el nombre tenga solo letras, espacios, y algunos caracteres comunes
     if (!/^[a-záéíóúñ\s\-,\.()]+$/i.test(ingredientName.trim())) {
+      Logger.warn(MODULE, 'Invalid ingredient name format', ingredientName);
       setMessage('⚠️ Solo se permiten letras, espacios y caracteres como (-,.)');
       return;
     }
 
     // Validar cantidad si existe
     if (ingredientAmount.trim() && isNaN(ingredientAmount)) {
+      Logger.warn(MODULE, 'Invalid ingredient amount', ingredientAmount);
       setMessage('⚠️ La cantidad debe ser un número válido (ej: 2, 1.5)');
       return;
     }
@@ -56,6 +64,7 @@ export default function RecipeEditor({ navigation, route }) {
       updatedIngredients[editingIngredientIdx] = newIngredient;
       setIngredients(updatedIngredients);
       setEditingIngredientIdx(null);
+      Logger.info(MODULE, 'Ingredient updated', newIngredient.name);
       setMessage('✅ Cambios guardados');
     } else {
       // Modo agregar: validar duplicados
@@ -63,11 +72,13 @@ export default function RecipeEditor({ navigation, route }) {
         ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
       );
       if (isDuplicate) {
+        Logger.warn(MODULE, 'Duplicate ingredient attempted', ingredientName);
         setMessage(`⚠️ Ya existe "${ingredientName}" en los ingredientes`);
         return;
       }
       
       setIngredients([...ingredients, newIngredient]);
+      Logger.info(MODULE, 'Ingredient added', newIngredient.name);
       setMessage('✅ Ingrediente agregado');
     }
     
@@ -95,12 +106,14 @@ export default function RecipeEditor({ navigation, route }) {
   async function save() {
     // Validar nombre
     if (!name.trim()) {
+      Logger.warn(MODULE, 'Attempted to save recipe without name');
       setMessage('⚠️ Por favor ingresa un nombre para la receta');
       return;
     }
 
     // Validar ingredientes
     if (ingredients.length === 0) {
+      Logger.warn(MODULE, 'Attempted to save recipe without ingredients');
       setMessage('⚠️ Por favor agrega al menos un ingrediente');
       return;
     }
@@ -108,6 +121,7 @@ export default function RecipeEditor({ navigation, route }) {
     // Validar que los ingredientes sean válidos
     const invalidIngredients = ingredients.filter(ing => !ing.name || !ing.name.trim());
     if (invalidIngredients.length > 0) {
+      Logger.warn(MODULE, 'Recipe has invalid ingredients');
       setMessage('⚠️ Todos los ingredientes deben tener un nombre');
       return;
     }
@@ -122,9 +136,17 @@ export default function RecipeEditor({ navigation, route }) {
       }))
     };
 
-    await saveRecipe(recipeToSave);
-    setMessage(`✅ Receta "${recipeToSave.name}" guardada`);
-    setTimeout(() => navigation.goBack(), 1500);
+    setLoading(true);
+    try {
+      await saveRecipe(recipeToSave);
+      Logger.info(MODULE, editing ? 'Recipe updated' : 'Recipe created', recipeToSave.name);
+      setMessage(`✅ Receta "${recipeToSave.name}" guardada`);
+      setTimeout(() => navigation.goBack(), 1500);
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to save recipe', error.message);
+      setMessage('Error al guardar la receta');
+      setLoading(false);
+    }
   }
 
   async function removeIngredient(idx) {
@@ -136,19 +158,24 @@ export default function RecipeEditor({ navigation, route }) {
   async function removeRecipe() {
     if (!editing) return;
     
-    const confirmDelete = await new Promise(resolve => {
-      setMessage('¿Eliminar receta? Presiona otra vez para confirmar');
-      setTimeout(() => setMessage(''), 3000);
-      // Simple: solo deletea
-    });
-
-    await storageDelete(editing.id);
-    setMessage(`✅ "${editing.name}" eliminada`);
-    setTimeout(() => navigation.goBack(), 1500);
+    setLoading(true);
+    try {
+      Logger.info(MODULE, 'Deleting recipe', editing.name);
+      await storageDelete(editing.id);
+      Logger.info(MODULE, 'Recipe deleted successfully', editing.name);
+      setMessage(`✅ "${editing.name}" eliminada`);
+      setTimeout(() => navigation.goBack(), 1500);
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to delete recipe', error.message);
+      setMessage('Error al eliminar la receta');
+      setLoading(false);
+    }
   }
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loading} message="Guardando..." />
+      
       {message ? (
         <View style={[styles.messageBox, message.includes('⚠️') ? styles.messageError : styles.messageSuccess]}>
           <Text style={styles.messageText}>{message}</Text>
