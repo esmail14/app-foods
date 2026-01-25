@@ -106,6 +106,9 @@ export default function RecipeList({ navigation, route }) {
     if (onPick) {
       onPick(recipe);
       navigation.goBack();
+    } else if (pickFor) {
+      // Usar el patrón de route.params para devolver la receta seleccionada
+      navigation.navigate('WeekView', { selectedRecipe: recipe });
     }
   }
 

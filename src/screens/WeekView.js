@@ -19,7 +19,7 @@ function startOfWeek(date = new Date()) {
   return monday;
 }
 
-export default function WeekView({ navigation }) {
+export default function WeekView({ navigation, route }) {
   const [mealsByDate, setMealsByDate] = useState({});
   const [mealTypes, setMealTypes] = useState(['desayuno', 'almuerzo', 'cena']);
   const [selectedMeal, setSelectedMeal] = useState(null);
@@ -30,7 +30,16 @@ export default function WeekView({ navigation }) {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [selectedWeekToDuplicate, setSelectedWeekToDuplicate] = useState(null);
   const [showClearWeekModal, setShowClearWeekModal] = useState(false);
+  const [pendingMealInfo, setPendingMealInfo] = useState(null);
   const focused = useIsFocused();
+
+  // Listener para cuando se retorna de RecipeList con una receta seleccionada
+  useEffect(() => {
+    if (route.params?.selectedRecipe && pendingMealInfo) {
+      savePendingMeal(route.params.selectedRecipe);
+      navigation.setParams({ selectedRecipe: null });
+    }
+  }, [route.params?.selectedRecipe]);
 
   useEffect(() => {
     if (focused) {
@@ -78,26 +87,34 @@ export default function WeekView({ navigation }) {
 
   function openRecipePicker(dateStr, mealType) {
     Logger.info(MODULE, 'Opening recipe picker', dateStr + ' - ' + mealType);
+    setPendingMealInfo({ date: dateStr, mealType });
     navigation.navigate('Recipes', {
       pickFor: { date: dateStr, mealType },
-      onPick: async (recipe) => {
-        setLoading(true);
-        try {
-          Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
-          await saveMeal({ 
-            date: dateStr, 
-            mealType, 
-            recipeId: recipe.id, 
-            recipeName: recipe.name, 
-            ingredients: recipe.ingredients 
-          });
-          Logger.info(MODULE, 'Meal saved', dateStr + ' - ' + mealType);
-          await load();
-        } finally {
-          setLoading(false);
-        }
-      }
+      returnToWeekView: true
     });
+  }
+
+  async function savePendingMeal(recipe) {
+    if (!pendingMealInfo) return;
+    setLoading(true);
+    try {
+      Logger.info(MODULE, 'Recipe selected for meal', recipe.name);
+      await saveMeal({ 
+        date: pendingMealInfo.date, 
+        mealType: pendingMealInfo.mealType, 
+        recipeId: recipe.id, 
+        recipeName: recipe.name, 
+        ingredients: recipe.ingredients 
+      });
+      Logger.info(MODULE, 'Meal saved', pendingMealInfo.date + ' - ' + pendingMealInfo.mealType);
+      setPendingMealInfo(null);
+      await load();
+    } catch (error) {
+      Logger.error(MODULE, 'Failed to save meal', error.message);
+      Alert.alert('Error', 'No se pudo guardar la comida');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleLongPress(dateStr, mealType) {
@@ -284,7 +301,7 @@ export default function WeekView({ navigation }) {
           <Text style={styles.actionBtnText}>Lista</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Recipes')}>
-          <Text style={styles.actionBtnIcon}>🍽</Text>
+          <Text style={styles.actionBtnIcon}>🍽️</Text>
           <Text style={styles.actionBtnText}>Recetas</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Settings')}>
@@ -457,10 +474,10 @@ const styles = StyleSheet.create({
   mealsLargeContainer: { gap: 8 },
   backToDay: { paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#e8f4f3', borderBottomWidth: 2, borderBottomColor: '#4ECDC4', marginBottom: 8 },
   backToDayText: { color: '#4ECDC4', fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
-  actions: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 12, paddingVertical: 12, gap: 10, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0' },
-  actionBtn: { flex: 1, backgroundColor: '#FF6B6B', paddingVertical: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
-  actionBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  actionBtnIcon: { fontSize: 20 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 8, paddingVertical: 12, gap: 8, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e0e0e0' },
+  actionBtn: { width: '31%', backgroundColor: '#FF6B6B', paddingVertical: 12, borderRadius: 8, flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
+  actionBtnText: { color: '#fff', fontWeight: '600', fontSize: 12, textAlign: 'center' },
+  actionBtnIcon: { fontSize: 22 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '85%', maxWidth: 400, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 4 },
