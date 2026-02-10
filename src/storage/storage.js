@@ -9,6 +9,7 @@ const MODULE = 'Storage';
 const RECIPES_KEY = 'mp_recipes_v1';
 const MEALS_KEY = 'mp_meals_v1';
 const PANTRY_KEY = 'mp_pantry_v1';
+const SHOPPING_LIST_MODIFICATIONS_KEY = 'mp_shopping_list_mods_v1';
 
 // Get current user
 async function getCurrentUser() {
@@ -40,6 +41,8 @@ export async function getAllRecipes() {
       id: r.id,
       name: r.name,
       ingredients: r.ingredients || [],
+      instructions: r.instructions || '',
+      photoUri: r.photo_uri || null,
       is_favorite: r.is_favorite || false,
       created_at: r.created_at
     }));
@@ -67,6 +70,8 @@ export async function saveRecipe(recipe) {
       id: recipe.id || uuidv4(),
       name: recipe.name,
       ingredients: recipe.ingredients || [],
+      instructions: recipe.instructions || '',
+      photo_uri: recipe.photoUri || null,
       is_favorite: recipe.is_favorite || false,
       user_id: user.id
     };
@@ -79,6 +84,8 @@ export async function saveRecipe(recipe) {
         .update({
           name: recipeData.name,
           ingredients: recipeData.ingredients,
+          instructions: recipeData.instructions,
+          photo_uri: recipeData.photo_uri,
           is_favorite: recipeData.is_favorite,
           updated_at: new Date().toISOString()
         })
@@ -487,4 +494,47 @@ export async function getPantry() {
 
 export async function savePantry(items) {
   await AsyncStorage.setItem(PANTRY_KEY, JSON.stringify(items));
+}
+
+// Shopping List Modifications
+export async function getShoppingListModifications() {
+  try {
+    const raw = await AsyncStorage.getItem(SHOPPING_LIST_MODIFICATIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    Logger.error(MODULE, 'Error getting shopping list modifications', error.message);
+    return {};
+  }
+}
+
+export async function modifyShoppingListItem(itemKey, modification) {
+  try {
+    Logger.info(MODULE, 'Modifying shopping list item', { itemKey, modification });
+    const mods = await getShoppingListModifications();
+    
+    if (modification === null) {
+      // Delete modification (restore original)
+      delete mods[itemKey];
+    } else {
+      // Update modification
+      mods[itemKey] = modification;
+    }
+    
+    await AsyncStorage.setItem(SHOPPING_LIST_MODIFICATIONS_KEY, JSON.stringify(mods));
+    Logger.info(MODULE, 'Shopping list modification saved', itemKey);
+  } catch (error) {
+    Logger.error(MODULE, 'Error modifying shopping list item', error.message);
+    throw error;
+  }
+}
+
+export async function clearShoppingListModifications() {
+  try {
+    Logger.info(MODULE, 'Clearing all shopping list modifications');
+    await AsyncStorage.removeItem(SHOPPING_LIST_MODIFICATIONS_KEY);
+    Logger.info(MODULE, 'Shopping list modifications cleared');
+  } catch (error) {
+    Logger.error(MODULE, 'Error clearing shopping list modifications', error.message);
+    throw error;
+  }
 }
