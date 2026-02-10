@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Picker } from 'react-native';
+import { View, TextInput, Button, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Picker, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { saveRecipe, getAllRecipes, deleteRecipe as storageDelete } from '../storage/storage';
 import { Logger } from '../utils/logger';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -9,6 +10,8 @@ const MODULE = 'RecipeEditor';
 export default function RecipeEditor({ navigation, route }) {
   const editing = route.params?.recipe;
   const [name, setName] = useState(editing?.name ?? '');
+  const [instructions, setInstructions] = useState(editing?.instructions ?? '');
+  const [photoUri, setPhotoUri] = useState(editing?.photoUri ?? null);
   const [ingredientName, setIngredientName] = useState('');
   const [ingredientAmount, setIngredientAmount] = useState('');
   const [ingredientUnit, setIngredientUnit] = useState('');
@@ -103,6 +106,31 @@ export default function RecipeEditor({ navigation, route }) {
     setEditingIngredientIdx(null);
   }
 
+  async function pickPhoto() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7
+      });
+
+      if (!result.cancelled) {
+        setPhotoUri(result.assets[0].uri);
+        Logger.info(MODULE, 'Photo selected');
+        setMessage('✅ Foto agregada');
+      }
+    } catch (error) {
+      Logger.error(MODULE, 'Error picking photo', error.message);
+      setMessage('❌ Error al seleccionar foto');
+    }
+  }
+
+  function removePhoto() {
+    setPhotoUri(null);
+    setMessage('✅ Foto eliminada');
+  }
+
   async function save() {
     // Validar nombre
     if (!name.trim()) {
@@ -133,7 +161,9 @@ export default function RecipeEditor({ navigation, route }) {
       ingredients: ingredients.map(ing => ({
         ...ing,
         name: ing.name.trim()
-      }))
+      })),
+      instructions: instructions.trim(),
+      photoUri: photoUri
     };
 
     setLoading(true);
@@ -184,6 +214,33 @@ export default function RecipeEditor({ navigation, route }) {
       <View style={styles.section}>
         <Text style={styles.label}>Nombre de la receta</Text>
         <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="P. ej. Ensalada de atún" placeholderTextColor="#ccc" />
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.label}>Instrucciones</Text>
+        <TextInput
+          value={instructions}
+          onChangeText={setInstructions}
+          style={[styles.input, styles.instructionsInput]}
+          placeholder="P. ej. 1. Cortar los tomates\n2. Mezclar con aceite..."
+          placeholderTextColor="#ccc"
+          multiline
+          numberOfLines={4}
+        />
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.label}>Foto de la receta</Text>
+        {photoUri && (
+          <View style={styles.photoContainer}>
+            <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+            <TouchableOpacity style={styles.removePhotoBtn} onPress={removePhoto}>
+              <Text style={styles.removePhotoBtnIcon}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <TouchableOpacity style={styles.photoBtn} onPress={pickPhoto}>
+          <Text style={styles.photoBtnIcon}>📷</Text>
+          <Text style={styles.photoBtnText}>{photoUri ? 'Cambiar foto' : 'Seleccionar foto'}</Text>
+        </TouchableOpacity>
       </View>
       <View style={styles.section}>
         <Text style={styles.label}>Agregar ingrediente</Text>
@@ -281,6 +338,14 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8, textTransform: 'uppercase' },
   smallLabel: { fontSize: 12, fontWeight: '600', color: '#666', marginBottom: 4 },
   input: { borderWidth: 1, borderColor: '#ddd', padding: 10, marginVertical: 0, borderRadius: 6, color: '#333', fontSize: 14 },
+  instructionsInput: { textAlignVertical: 'top', paddingTop: 10 },
+  photoContainer: { position: 'relative', marginBottom: 12 },
+  photoPreview: { width: '100%', height: 200, borderRadius: 8, marginBottom: 8 },
+  removePhotoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#FF6B6B', borderRadius: 20, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  removePhotoBtnIcon: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
+  photoBtn: { backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 10, borderRadius: 6, marginTop: 8 },
+  photoBtnIcon: { fontSize: 20 },
+  photoBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   ingredientInputContainer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   unitPickerContainer: { flex: 0.8 },
   unitPicker: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, height: 40, backgroundColor: '#f9f9f9' },
