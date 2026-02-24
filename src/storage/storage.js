@@ -43,6 +43,9 @@ export async function getAllRecipes() {
       ingredients: r.ingredients || [],
       instructions: r.instructions || '',
       photoUri: r.photo_uri || null,
+      servings: r.servings || 4,
+      prepTime: r.prep_time || 30,
+      difficulty: r.difficulty || 'media',
       is_favorite: r.is_favorite || false,
       created_at: r.created_at
     }));
@@ -72,6 +75,9 @@ export async function saveRecipe(recipe) {
       ingredients: recipe.ingredients || [],
       instructions: recipe.instructions || '',
       photo_uri: recipe.photoUri || null,
+      servings: recipe.servings || 4,
+      prep_time: recipe.prepTime || 30,
+      difficulty: recipe.difficulty || 'media',
       is_favorite: recipe.is_favorite || false,
       user_id: user.id
     };
@@ -86,6 +92,9 @@ export async function saveRecipe(recipe) {
           ingredients: recipeData.ingredients,
           instructions: recipeData.instructions,
           photo_uri: recipeData.photo_uri,
+          servings: recipeData.servings,
+          prep_time: recipeData.prep_time,
+          difficulty: recipeData.difficulty,
           is_favorite: recipeData.is_favorite,
           updated_at: new Date().toISOString()
         })
@@ -535,6 +544,31 @@ export async function clearShoppingListModifications() {
     Logger.info(MODULE, 'Shopping list modifications cleared');
   } catch (error) {
     Logger.error(MODULE, 'Error clearing shopping list modifications', error.message);
+    throw error;
+  }
+}
+
+// Add ingredients from recipe to shopping list
+export async function addIngredientsFromRecipe(ingredients) {
+  try {
+    Logger.info(MODULE, 'Adding ingredients from recipe', ingredients.length + ' items');
+    const mods = await getShoppingListModifications();
+    
+    // Mark these ingredients as added (not deleted)
+    // They'll be picked up when the shopping list is next generated
+    ingredients.forEach(ing => {
+      const key = ing.name + (ing.unit || '');
+      // Only mark if not already in modifications
+      if (!mods[key]) {
+        mods[key] = { amount: ing.amount, isAdded: true };
+      }
+    });
+    
+    await AsyncStorage.setItem(SHOPPING_LIST_MODIFICATIONS_KEY, JSON.stringify(mods));
+    Logger.info(MODULE, 'Ingredients added to shopping list', ingredients.length + ' items');
+    return true;
+  } catch (error) {
+    Logger.error(MODULE, 'Error adding ingredients from recipe', error.message);
     throw error;
   }
 }

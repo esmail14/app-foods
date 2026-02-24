@@ -12,6 +12,9 @@ export default function RecipeEditor({ navigation, route }) {
   const [name, setName] = useState(editing?.name ?? '');
   const [instructions, setInstructions] = useState(editing?.instructions ?? '');
   const [photoUri, setPhotoUri] = useState(editing?.photoUri ?? null);
+  const [servings, setServings] = useState(String(editing?.servings ?? 4));
+  const [prepTime, setPrepTime] = useState(String(editing?.prepTime ?? 30));
+  const [difficulty, setDifficulty] = useState(editing?.difficulty ?? 'media');
   const [ingredientName, setIngredientName] = useState('');
   const [ingredientAmount, setIngredientAmount] = useState('');
   const [ingredientUnit, setIngredientUnit] = useState('');
@@ -21,6 +24,7 @@ export default function RecipeEditor({ navigation, route }) {
   const [loading, setLoading] = useState(false);
 
   const units = ['', 'g', 'kg', 'ml', 'l', 'taza', 'cucharada', 'cucharadita', 'unidad', 'paquete'];
+  const difficulties = ['fácil', 'media', 'difícil'];
 
   useEffect(() => {
     if (message) {
@@ -163,7 +167,10 @@ export default function RecipeEditor({ navigation, route }) {
         name: ing.name.trim()
       })),
       instructions: instructions.trim(),
-      photoUri: photoUri
+      photoUri: photoUri,
+      servings: parseInt(servings) || 4,
+      prepTime: parseInt(prepTime) || 30,
+      difficulty: difficulty
     };
 
     setLoading(true);
@@ -241,6 +248,45 @@ export default function RecipeEditor({ navigation, route }) {
           <Text style={styles.photoBtnIcon}>📷</Text>
           <Text style={styles.photoBtnText}>{photoUri ? 'Cambiar foto' : 'Seleccionar foto'}</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.label}>Información de la receta</Text>
+        <View style={styles.infoRow}>
+          <View style={styles.infoCellSmall}>
+            <Text style={styles.smallLabel}>Porciones</Text>
+            <TextInput
+              value={servings}
+              onChangeText={setServings}
+              style={styles.input}
+              placeholder="4"
+              placeholderTextColor="#ccc"
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={styles.infoCellSmall}>
+            <Text style={styles.smallLabel}>Tiempo (min)</Text>
+            <TextInput
+              value={prepTime}
+              onChangeText={setPrepTime}
+              style={styles.input}
+              placeholder="30"
+              placeholderTextColor="#ccc"
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={styles.infoCellSmall}>
+            <Text style={styles.smallLabel}>Dificultad</Text>
+            <Picker
+              selectedValue={difficulty}
+              onValueChange={setDifficulty}
+              style={styles.unitPicker}
+            >
+              {difficulties.map((d, idx) => (
+                <Picker.Item key={idx} label={d} value={d} />
+              ))}
+            </Picker>
+          </View>
+        </View>
       </View>
       <View style={styles.section}>
         <Text style={styles.label}>Agregar ingrediente</Text>
@@ -365,6 +411,8 @@ const styles = StyleSheet.create({
   ingredientTextEditing: { color: '#4ECDC4', fontWeight: '600', backgroundColor: '#f0f9f8', padding: 4, borderRadius: 4 },
   deleteBtn: { padding: 4 },
   deleteIcon: { fontSize: 18, color: '#FF6B6B' },
+  infoRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  infoCellSmall: { flex: 1 },
   buttons: { flexDirection: 'column', gap: 8, marginTop: 12 },
   saveBtn: { backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 14, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
