@@ -200,7 +200,7 @@ export default function RecipeList({ navigation, route }) {
         renderItem={({item}) => (
           <TouchableOpacity 
             style={styles.item} 
-            onPress={() => pickFor ? pick(item) : openEditor(item)}
+            onPress={() => pickFor ? pick(item) : navigation.navigate('RecipeDetail', { recipe: item })}
             onLongPress={() => !pickFor && handleDeleteRecipe(item)}
           >
             <View style={styles.itemContent}>

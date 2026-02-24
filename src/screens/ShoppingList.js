@@ -60,19 +60,42 @@ export default function ShoppingList() {
       
       // Validar que haya ingredientes
       if (allIngredients.length === 0) {
-        Logger.info(MODULE, 'No ingredients found for shopping list');
-        setItems([]);
-        setLoading(false);
-        return;
+        Logger.info(MODULE, 'No ingredients found for shopping list, checking for manual additions');
+        // Continue to check for manually added ingredients
       }
       
-      const aggregated = aggregateIngredients(allIngredients);
-      Logger.debug(MODULE, 'Aggregated ingredients', JSON.stringify(aggregated));
-      const pantry = await getPantry();
-      let final = subtractPantry(aggregated, pantry);
+      let final = [];
+      if (allIngredients.length > 0) {
+        const aggregated = aggregateIngredients(allIngredients);
+        Logger.debug(MODULE, 'Aggregated ingredients', JSON.stringify(aggregated));
+        const pantry = await getPantry();
+        final = subtractPantry(aggregated, pantry);
+      }
       
       // Apply modifications
       const mods = await getShoppingListModifications();
+      
+      // Add manually added ingredients
+      if (mods) {
+        Object.entries(mods).forEach(([key, mod]) => {
+          if (mod?.isAdded && !mod?.deleted) {
+            // Parse key to get name and unit
+            const nameMatch = key.match(/^(.+?)(g|kg|ml|l|taza|cucharada|cucharadita|unidad|paquete)?$/);
+            if (!final.find(item => item.name + (item.unit || '') === key)) {
+              // Extract name and unit from key
+              const parts = key.split(/\s+(g|kg|ml|l|taza|cucharada|cucharadita|unidad|paquete)?$/);
+              const name = parts[0];
+              const unit = parts[1] || '';
+              
+              final.push({
+                name: name,
+                totalAmount: mod.amount || 1,
+                unit: unit
+              });
+            }
+          }
+        });
+      }
       
       final = final.map(item => {
         const key = item.name + (item.unit || '');
@@ -82,7 +105,7 @@ export default function ShoppingList() {
           return null; // Mark for removal
         }
         
-        if (mod?.amount !== undefined) {
+        if (mod?.amount !== undefined && !mod?.isAdded) {
           return { ...item, totalAmount: mod.amount };
         }
         

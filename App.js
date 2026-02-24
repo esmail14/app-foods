@@ -6,6 +6,7 @@ import { supabase } from './src/supabase';
 import WeekView from './src/screens/WeekView';
 import RecipeList from './src/screens/RecipeList';
 import RecipeEditor from './src/screens/RecipeEditor';
+import RecipeDetail from './src/screens/RecipeDetail';
 import ShoppingList from './src/screens/ShoppingList';
 import SettingsScreen from './src/screens/SettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -75,6 +76,11 @@ export default function App() {
               name="EditRecipe"
               component={RecipeEditor}
               options={{ title: 'Editar receta' }}
+            />
+            <Stack.Screen
+              name="RecipeDetail"
+              component={RecipeDetail}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ShoppingList"
