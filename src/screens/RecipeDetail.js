@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
-import { addIngredientsFromRecipe } from '../storage/storage';
+import { addIngredientesFromRecipe } from '../storage/storage';
 import { Logger } from '../utils/logger';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -24,7 +24,7 @@ export default function RecipeDetail({ navigation, route }) {
   const scaleFactor = currentServings / (recipe.servings || 4);
 
   // Escalar ingredientes
-  const scaledIngredients = recipe.ingredients.map(ing => ({
+  const scaledIngredientes = recipe.ingredientes.map(ing => ({
     ...ing,
     amount: ing.amount ? (ing.amount * scaleFactor).toFixed(2) : null
   }));
@@ -39,10 +39,10 @@ export default function RecipeDetail({ navigation, route }) {
   const addToShoppingList = async () => {
     setLoading(true);
     try {
-      await addIngredientsFromRecipe(scaledIngredients);
-      Logger.info(MODULE, 'Ingredients added to shopping list', { count: scaledIngredients.length, servings: currentServings });
+      await addIngredientesFromRecipe(scaledIngredientes);
+      Logger.info(MODULE, 'Ingredientes added to shopping list', { count: scaledIngredientes.length, servings: currentServings });
       
-      Alert.alert('✅ Éxito', `${scaledIngredients.length} ingredientes agregados a la lista de compra`, [
+      Alert.alert('Éxito', `${scaledIngredientes.length} ingredientes agregados a la lista de compra`, [
         {
           text: 'Ir a lista',
           onPress: () => {
@@ -55,8 +55,8 @@ export default function RecipeDetail({ navigation, route }) {
         }
       ]);
     } catch (error) {
-      Logger.error(MODULE, 'Error adding ingredients', error.message);
-      Alert.alert('❌ Error', 'No se pudieron agregar los ingredientes');
+      Logger.error(MODULE, 'Error adding ingredientes', error.message);
+      Alert.alert('Error', 'No se pudieron agregar los ingredientes');
     } finally {
       setLoading(false);
     }
@@ -80,11 +80,11 @@ export default function RecipeDetail({ navigation, route }) {
       case 'fácil':
         return '😊';
       case 'media':
-        return '😐';
+        return '😛';
       case 'difícil':
         return '😰';
       default:
-        return '❓';
+        return '🤔';
     }
   };
 
@@ -96,25 +96,23 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Header con nombre y favorito */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>◀</Text>
+            <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <Text style={styles.title}>{recipe.name}</Text>
           <TouchableOpacity style={styles.favBtn}>
-            <Text style={styles.favIcon}>⭐</Text>
+            <Text style={styles.favIcon}>★</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Foto grande */}
         {recipe.photoUri && (
           <View style={styles.photoSection}>
             <Image source={{ uri: recipe.photoUri }} style={styles.photo} />
           </View>
         )}
 
-        {/* Información rápida */}
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>⏱️</Text>
+            <Text style={styles.infoIcon}>🕒</Text>
             <View>
               <Text style={styles.infoLabel}>Tiempo</Text>
               <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
@@ -138,8 +136,7 @@ export default function RecipeDetail({ navigation, route }) {
               <View style={styles.servingsButtons}>
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}
-                >
+                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}>
                   <Text style={styles.servingsBtnText}>−</Text>
                 </TouchableOpacity>
                 <TextInput
@@ -150,8 +147,7 @@ export default function RecipeDetail({ navigation, route }) {
                 />
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(currentServings + 1))}
-                >
+                  onPress={() => handleServingsChange(String(currentServings + 1))}>
                   <Text style={styles.servingsBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -161,12 +157,12 @@ export default function RecipeDetail({ navigation, route }) {
 
         {/* Ingredientes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Ingredientes</Text>
-          {scaledIngredients.map((ing, idx) => (
-            <View key={idx} style={styles.ingredientItem}>
-              <Text style={styles.ingredientBullet}>•</Text>
-              <Text style={styles.ingredientText}>
-                {ing.amount ? `${ing.amount} ` : ''}{ing.unit} {ing.name}
+          <Text style={styles.sectionTitle}>🍴 Ingredientes</Text>
+          {scaledIngredientes.map((ing, idx) => (
+            <View key={idx} style={styles.ingrédientItem}>
+              <Text style={styles.ingrédientBullet}>○</Text>
+              <Text style={styles.ingrédientText}>
+                {ing.amount ? `${ing.amount} ${ing.unit} ` : ''}{ing.name}
               </Text>
             </View>
           ))}
@@ -175,7 +171,7 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Instrucciones */}
         {recipe.instructions && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👨‍🍳 Instrucciones</Text>
+            <Text style={styles.sectionTitle}>📜 Instrucciones</Text>
             <Text style={styles.instructionsText}>{recipe.instructions}</Text>
           </View>
         )}
@@ -183,13 +179,13 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Botones de acción */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.addBtn} onPress={addToShoppingList}>
-            <Text style={styles.addBtnIcon}>🛒</Text>
+            <Text style={styles.addBtnIcon}>+</Text>
             <Text style={styles.addBtnText}>Agregar a lista</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.editBtn} onPress={() => {
             navigation.navigate('EditRecipe', { recipe });
           }}>
-            <Text style={styles.editBtnIcon}>✏️</Text>
+            <Text style={styles.editBtnIcon}>✎</Text>
             <Text style={styles.editBtnText}>Editar</Text>
           </TouchableOpacity>
         </View>
@@ -215,15 +211,15 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 12, color: '#999', fontWeight: '600', textTransform: 'uppercase' },
   infoValue: { fontSize: 16, fontWeight: '700', color: '#333', marginTop: 4 },
   servingsControl: { flex: 1 },
-  servingsButtons: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  servingsButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 4 },
   servingsBtn: { width: 28, height: 28, borderRadius: 6, backgroundColor: '#4ECDC4', justifyContent: 'center', alignItems: 'center' },
-  servingsBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  servingsBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 20 },
   servingsInput: { width: 40, height: 28, borderWidth: 1, borderColor: '#ddd', borderRadius: 6, textAlign: 'center', color: '#333', fontWeight: '600' },
-  section: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 8 },
+  section: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 12 },
-  ingredientItem: { flexDirection: 'row', marginBottom: 8 },
-  ingredientBullet: { fontSize: 16, color: '#4ECDC4', fontWeight: 'bold', marginRight: 8, width: 20 },
-  ingredientText: { fontSize: 14, color: '#333', flex: 1 },
+  ingrédientItem: { flexDirection: 'row', marginBottom: 8 },
+  ingrédientBullet: { fontSize: 16, color: '#4ECDC4', fontWeight: 'bold', width: 20 },
+  ingrédientText: { fontSize: 14, color: '#333', flex: 1 },
   instructionsText: { fontSize: 14, color: '#555', lineHeight: 22, fontFamily: 'Courier New' },
   actionButtons: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 20 },
   addBtn: { flex: 1, backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
@@ -232,5 +228,5 @@ const styles = StyleSheet.create({
   editBtn: { flex: 1, backgroundColor: '#95a5a6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   editBtnIcon: { fontSize: 18 },
   editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  errorText: { fontSize: 16, color: '#FF6B6B', textAlign: 'center', marginTop: 20 }
+  errorText: { fontSize: 16, color: '#FF6B6B', textAlign: 'center', marginTop: 20 },
 });
