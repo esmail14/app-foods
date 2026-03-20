@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TextInput
+} from 'react-native';
 import { addIngredientesFromRecipe } from '../storage/storage';
 import { Logger } from '../utils/logger';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -78,13 +87,13 @@ export default function RecipeDetail({ navigation, route }) {
   const getDifficultyEmoji = () => {
     switch (recipe.difficulty) {
       case 'fácil':
-        return '😊';
+        return '🌟';
       case 'media':
-        return '😛';
+        return '🔥';
       case 'difícil':
-        return '😰';
+        return '💪';
       default:
-        return '🤔';
+        return '❓';
     }
   };
 
@@ -96,11 +105,11 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Header con nombre y favorito */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backIcon}>❮</Text>
           </TouchableOpacity>
           <Text style={styles.title}>{recipe.name}</Text>
           <TouchableOpacity style={styles.favBtn}>
-            <Text style={styles.favIcon}>★</Text>
+            <Text style={styles.favIcon}>❤️</Text>
           </TouchableOpacity>
         </View>
 
@@ -112,7 +121,7 @@ export default function RecipeDetail({ navigation, route }) {
 
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>🕒</Text>
+            <Text style={styles.infoIcon}>⏳</Text>
             <View>
               <Text style={styles.infoLabel}>Tiempo</Text>
               <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
@@ -130,13 +139,14 @@ export default function RecipeDetail({ navigation, route }) {
           </View>
           <View style={styles.infoDivider} />
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>👥</Text>
+            <Text style={styles.infoIcon}>🍽️</Text>
             <View style={styles.servingsControl}>
               <Text style={styles.infoLabel}>Porciones</Text>
               <View style={styles.servingsButtons}>
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}>
+                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}
+                >
                   <Text style={styles.servingsBtnText}>−</Text>
                 </TouchableOpacity>
                 <TextInput
@@ -147,7 +157,8 @@ export default function RecipeDetail({ navigation, route }) {
                 />
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(currentServings + 1))}>
+                  onPress={() => handleServingsChange(String(currentServings + 1))}
+                >
                   <Text style={styles.servingsBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -157,11 +168,11 @@ export default function RecipeDetail({ navigation, route }) {
 
         {/* Ingredientes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🍴 Ingredientes</Text>
+          <Text style={styles.sectionTitle}>🛒 Ingredientes</Text>
           {scaledIngredientes.map((ing, idx) => (
-            <View key={idx} style={styles.ingrédientItem}>
-              <Text style={styles.ingrédientBullet}>○</Text>
-              <Text style={styles.ingrédientText}>
+            <View key={idx} style={styles.ingredienteItem}>
+              <Text style={styles.ingredienteBullet}>•</Text>
+              <Text style={styles.ingredienteText}>
                 {ing.amount ? `${ing.amount} ${ing.unit} ` : ''}{ing.name}
               </Text>
             </View>
@@ -171,7 +182,7 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Instrucciones */}
         {recipe.instructions && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📜 Instrucciones</Text>
+            <Text style={styles.sectionTitle}>ℹ️ Instrucciones</Text>
             <Text style={styles.instructionsText}>{recipe.instructions}</Text>
           </View>
         )}
@@ -185,7 +196,7 @@ export default function RecipeDetail({ navigation, route }) {
           <TouchableOpacity style={styles.editBtn} onPress={() => {
             navigation.navigate('EditRecipe', { recipe });
           }}>
-            <Text style={styles.editBtnIcon}>✎</Text>
+            <Text style={styles.editBtnIcon}>✏️</Text>
             <Text style={styles.editBtnText}>Editar</Text>
           </TouchableOpacity>
         </View>
@@ -206,7 +217,7 @@ const styles = StyleSheet.create({
   photo: { width: '100%', height: '100%', resizeMode: 'cover' },
   infoCard: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, borderRadius: 8, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   infoItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoDivider: { width: 1, backgroundColor: '#e0e0e0', marginHorizontal: 8 },
+  infoDivider: { width: 1, backgroundColor: '#e0e0e0', marginHorizontal: 12 },
   infoIcon: { fontSize: 24 },
   infoLabel: { fontSize: 12, color: '#999', fontWeight: '600', textTransform: 'uppercase' },
   infoValue: { fontSize: 16, fontWeight: '700', color: '#333', marginTop: 4 },
@@ -217,9 +228,9 @@ const styles = StyleSheet.create({
   servingsInput: { width: 40, height: 28, borderWidth: 1, borderColor: '#ddd', borderRadius: 6, textAlign: 'center', color: '#333', fontWeight: '600' },
   section: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 12 },
-  ingrédientItem: { flexDirection: 'row', marginBottom: 8 },
-  ingrédientBullet: { fontSize: 16, color: '#4ECDC4', fontWeight: 'bold', width: 20 },
-  ingrédientText: { fontSize: 14, color: '#333', flex: 1 },
+  ingredienteItem: { flexDirection: 'row', marginBottom: 8 },
+  ingredienteBullet: { fontSize: 16, color: '#4ECDC4', fontWeight: 'bold', width: 20 },
+  ingredienteText: { fontSize: 14, color: '#333', flex: 1 },
   instructionsText: { fontSize: 14, color: '#555', lineHeight: 22, fontFamily: 'Courier New' },
   actionButtons: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 20 },
   addBtn: { flex: 1, backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
