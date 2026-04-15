@@ -9,9 +9,9 @@ import {
   Alert,
   TextInput
 } from 'react-native';
-import { addIngredientsFromRecipe } from './storage/storage';
-import { Logger } from './utils/logger';
-import LoadingSpinner from './components/LoadingSpinner';
+import { addIngredientsFromRecipe } from '../storage/storage';
+import { Logger } from '../utils/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MODULE = 'RecipeDetail';
 
