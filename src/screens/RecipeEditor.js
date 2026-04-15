@@ -52,16 +52,17 @@ export default function RecipeEditor({ navigation, route }) {
       return;
     }
 
-    // Validar cantidad si existe
-    if (ingredientAmount.trim() && isNaN(ingredientAmount)) {
+    // Validar cantidad si existe (normalizar coma decimal → punto)
+    const normalizedAmount = ingredientAmount.trim().replace(',', '.');
+    if (normalizedAmount && isNaN(normalizedAmount)) {
       Logger.warn(MODULE, 'Invalid ingredient amount', ingredientAmount);
-      setMessage('⚠️ La cantidad debe ser un número válido (ej: 2, 1.5)');
+      setMessage('⚠️ La cantidad debe ser un número válido (ej: 2, 1.5 o 1,5)');
       return;
     }
 
     const newIngredient = {
       name: ingredientName.trim(),
-      amount: ingredientAmount.trim() ? Number(ingredientAmount) : null,
+      amount: normalizedAmount ? Number(normalizedAmount) : null,
       unit: ingredientUnit || ''
     };
 
@@ -116,14 +117,26 @@ export default function RecipeEditor({ navigation, route }) {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7
+        quality: 0.7,
       });
 
-      if (!result.cancelled) {
-        setPhotoUri(result.assets[0].uri);
-        Logger.info(MODULE, 'Photo selected');
-        setMessage('✅ Foto agregada');
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        setMessage('❌ No se pudo obtener la imagen seleccionada');
+        return;
       }
+
+      const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic'];
+      if (asset.mimeType && !ALLOWED_MIME.includes(asset.mimeType)) {
+        setMessage('❌ Formato no válido. Usa JPG, PNG o WEBP');
+        return;
+      }
+
+      setPhotoUri(asset.uri);
+      Logger.info(MODULE, 'Photo selected');
+      setMessage('✅ Foto agregada');
     } catch (error) {
       Logger.error(MODULE, 'Error picking photo', error.message);
       setMessage('❌ Error al seleccionar foto');

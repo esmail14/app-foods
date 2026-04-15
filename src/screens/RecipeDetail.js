@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
-import { addIngredientsFromRecipe } from '../storage/storage';
-import { Logger } from '../utils/logger';
-import LoadingSpinner from '../components/LoadingSpinner';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TextInput
+} from 'react-native';
+import { addIngredientsFromRecipe } from './storage/storage';
+import { Logger } from './utils/logger';
+import LoadingSpinner from './components/LoadingSpinner';
 
 const MODULE = 'RecipeDetail';
 
@@ -40,9 +49,9 @@ export default function RecipeDetail({ navigation, route }) {
     setLoading(true);
     try {
       await addIngredientsFromRecipe(scaledIngredients);
-      Logger.info(MODULE, 'Ingredients added to shopping list', { count: scaledIngredients.length, servings: currentServings });
+      Logger.info(MODULE, 'Ingredientes added to shopping list', { count: scaledIngredients.length, servings: currentServings });
       
-      Alert.alert('✅ Éxito', `${scaledIngredients.length} ingredientes agregados a la lista de compra`, [
+      Alert.alert('Éxito', `${scaledIngredients.length} ingredientes agregados a la lista de compra`, [
         {
           text: 'Ir a lista',
           onPress: () => {
@@ -56,7 +65,7 @@ export default function RecipeDetail({ navigation, route }) {
       ]);
     } catch (error) {
       Logger.error(MODULE, 'Error adding ingredients', error.message);
-      Alert.alert('❌ Error', 'No se pudieron agregar los ingredientes');
+      Alert.alert('Error', 'No se pudieron agregar los ingredientes');
     } finally {
       setLoading(false);
     }
@@ -65,7 +74,7 @@ export default function RecipeDetail({ navigation, route }) {
   const getDifficultyColor = () => {
     switch (recipe.difficulty) {
       case 'fácil':
-        return '#4ECDC4';
+        return '#4ECDc4';
       case 'media':
         return '#F39C12';
       case 'difícil':
@@ -78,13 +87,13 @@ export default function RecipeDetail({ navigation, route }) {
   const getDifficultyEmoji = () => {
     switch (recipe.difficulty) {
       case 'fácil':
-        return '😊';
+        return '🟢';
       case 'media':
-        return '😐';
+        return '🟡';
       case 'difícil':
-        return '😰';
+        return '🔴';
       default:
-        return '❓';
+        return '⚪';
     }
   };
 
@@ -96,25 +105,23 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Header con nombre y favorito */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>◀</Text>
+            <Text style={styles.backIcon}>↩️</Text>
           </TouchableOpacity>
           <Text style={styles.title}>{recipe.name}</Text>
           <TouchableOpacity style={styles.favBtn}>
-            <Text style={styles.favIcon}>⭐</Text>
+            <Text style={styles.favIcon}>❤️</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Foto grande */}
         {recipe.photoUri && (
           <View style={styles.photoSection}>
             <Image source={{ uri: recipe.photoUri }} style={styles.photo} />
           </View>
         )}
 
-        {/* Información rápida */}
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>⏱️</Text>
+            <Text style={styles.infoIcon}>⏰</Text>
             <View>
               <Text style={styles.infoLabel}>Tiempo</Text>
               <Text style={styles.infoValue}>{recipe.prepTime} min</Text>
@@ -132,15 +139,14 @@ export default function RecipeDetail({ navigation, route }) {
           </View>
           <View style={styles.infoDivider} />
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>👥</Text>
+            <Text style={styles.infoIcon}>🍴</Text>
             <View style={styles.servingsControl}>
               <Text style={styles.infoLabel}>Porciones</Text>
               <View style={styles.servingsButtons}>
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}
-                >
-                  <Text style={styles.servingsBtnText}>−</Text>
+                  onPress={() => handleServingsChange(String(Math.max(1, currentServings - 1)))}>
+                  <Text style={styles.servingsBtnText}>-</Text>
                 </TouchableOpacity>
                 <TextInput
                   style={styles.servingsInput}
@@ -150,8 +156,7 @@ export default function RecipeDetail({ navigation, route }) {
                 />
                 <TouchableOpacity
                   style={styles.servingsBtn}
-                  onPress={() => handleServingsChange(String(currentServings + 1))}
-                >
+                  onPress={() => handleServingsChange(String(currentServings + 1))}>
                   <Text style={styles.servingsBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -166,7 +171,7 @@ export default function RecipeDetail({ navigation, route }) {
             <View key={idx} style={styles.ingredientItem}>
               <Text style={styles.ingredientBullet}>•</Text>
               <Text style={styles.ingredientText}>
-                {ing.amount ? `${ing.amount} ` : ''}{ing.unit} {ing.name}
+                {ing.amount ? `${ing.amount} ${ing.unit} ` : ''}{ing.name}
               </Text>
             </View>
           ))}
@@ -175,7 +180,7 @@ export default function RecipeDetail({ navigation, route }) {
         {/* Instrucciones */}
         {recipe.instructions && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👨‍🍳 Instrucciones</Text>
+            <Text style={styles.sectionTitle}>🔪 Instrucciones</Text>
             <Text style={styles.instructionsText}>{recipe.instructions}</Text>
           </View>
         )}
@@ -209,27 +214,27 @@ const styles = StyleSheet.create({
   photoSection: { width: '100%', height: 250, backgroundColor: '#e0e0e0', marginBottom: 12 },
   photo: { width: '100%', height: '100%', resizeMode: 'cover' },
   infoCard: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, borderRadius: 8, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
-  infoItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoDivider: { width: 1, backgroundColor: '#e0e0e0', marginHorizontal: 8 },
+  infoItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  infoDivider: { width: 1, backgroundColor: '#e0e0e0', marginHorizontal: 12 },
   infoIcon: { fontSize: 24 },
   infoLabel: { fontSize: 12, color: '#999', fontWeight: '600', textTransform: 'uppercase' },
   infoValue: { fontSize: 16, fontWeight: '700', color: '#333', marginTop: 4 },
   servingsControl: { flex: 1 },
-  servingsButtons: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  servingsBtn: { width: 28, height: 28, borderRadius: 6, backgroundColor: '#4ECDC4', justifyContent: 'center', alignItems: 'center' },
-  servingsBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  servingsButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 4 },
+  servingsBtn: { width: 28, height: 28, borderRadius: 6, backgroundColor: '#4ECDc4', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 4 },
+  servingsBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 20 },
   servingsInput: { width: 40, height: 28, borderWidth: 1, borderColor: '#ddd', borderRadius: 6, textAlign: 'center', color: '#333', fontWeight: '600' },
-  section: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 8 },
+  section: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 12 },
   ingredientItem: { flexDirection: 'row', marginBottom: 8 },
-  ingredientBullet: { fontSize: 16, color: '#4ECDC4', fontWeight: 'bold', marginRight: 8, width: 20 },
+  ingredientBullet: { fontSize: 16, color: '#4ECDc4', fontWeight: 'bold', width: 20 },
   ingredientText: { fontSize: 14, color: '#333', flex: 1 },
   instructionsText: { fontSize: 14, color: '#555', lineHeight: 22, fontFamily: 'Courier New' },
   actionButtons: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 20 },
-  addBtn: { flex: 1, backgroundColor: '#4ECDC4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
+  addBtn: { flex: 1, backgroundColor: '#4ECDc4', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   addBtnIcon: { fontSize: 18 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  editBtn: { flex: 1, backgroundColor: '#95a5a6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
+  editBtn: { flex: 1, backgroundColor: '#95a5a6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   editBtnIcon: { fontSize: 18 },
   editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   errorText: { fontSize: 16, color: '#FF6B6B', textAlign: 'center', marginTop: 20 }

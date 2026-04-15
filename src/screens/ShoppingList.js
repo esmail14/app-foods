@@ -143,7 +143,7 @@ export default function ShoppingList() {
   async function saveEditAmount() {
     if (!editingItem) return;
     
-    const newAmount = parseFloat(editAmount);
+    const newAmount = parseFloat(editAmount.replace(',', '.'));
     if (isNaN(newAmount) || newAmount < 0) {
       Alert.alert('⚠️ Error', 'Ingresa una cantidad válida');
       return;
@@ -205,7 +205,7 @@ export default function ShoppingList() {
     }
 
     // Validar cantidad
-    const amount = parseFloat(newIngredientAmount);
+    const amount = parseFloat(newIngredientAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('⚠️ Error', 'Ingresa una cantidad válida (mayor a 0)');
       return;
