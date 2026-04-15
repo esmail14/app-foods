@@ -11,6 +11,33 @@ const MEALS_KEY = 'mp_meals_v1';
 const PANTRY_KEY = 'mp_pantry_v1';
 const SHOPPING_LIST_MODIFICATIONS_KEY = 'mp_shopping_list_mods_v1';
 
+// AsyncStorage helpers with safe error handling
+async function safeGetCache(key) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    Logger.warn(MODULE, `Cache read failed for key "${key}"`, error.message);
+    return null;
+  }
+}
+
+async function safeSetCache(key, value) {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    Logger.warn(MODULE, `Cache write failed for key "${key}"`, error.message);
+  }
+}
+
+async function safeRemoveCache(key) {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch (error) {
+    Logger.warn(MODULE, `Cache remove failed for key "${key}"`, error.message);
+  }
+}
+
 // Get current user
 async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -51,15 +78,14 @@ export async function getAllRecipes() {
     }));
 
     // Cache locally
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    await safeSetCache(RECIPES_KEY, recipes);
     Logger.info(MODULE, 'Recipes fetched: ' + recipes.length + ' recipes');
     return recipes;
   } catch (error) {
     Logger.error(MODULE, 'Error fetching recipes', error.message);
     console.error('Error fetching recipes:', error);
     // Fallback to local cache
-    const raw = await AsyncStorage.getItem(RECIPES_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return (await safeGetCache(RECIPES_KEY)) ?? [];
   }
 }
 
@@ -116,7 +142,7 @@ export async function saveRecipe(recipe) {
 
     // Update local cache
     const all = await getAllRecipes();
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+    await safeSetCache(RECIPES_KEY, all);
   } catch (error) {
     Logger.error(MODULE, 'Error saving recipe', error.message);
     console.error('Error saving recipe:', error);
@@ -140,7 +166,7 @@ export async function deleteRecipe(id) {
 
     // Update local cache
     const all = await getAllRecipes();
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+    await safeSetCache(RECIPES_KEY, all);
     Logger.info(MODULE, 'Recipe deleted successfully', id);
   } catch (error) {
     Logger.error(MODULE, 'Error deleting recipe', error.message);
@@ -172,7 +198,7 @@ export async function updateRecipeFavorite(id, isFavorite) {
 
     // Update local cache
     const all = await getAllRecipes();
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(all));
+    await safeSetCache(RECIPES_KEY, all);
     Logger.info(MODULE, 'Recipe favorite updated', { id, isFavorite });
   } catch (error) {
     Logger.error(MODULE, 'Error updating recipe favorite', error.message);
@@ -227,15 +253,14 @@ export async function getMealsForWeek(startOfWeek) {
     });
 
     // Cache locally
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    await safeSetCache(MEALS_KEY, mealsMap);
     Logger.info(MODULE, 'Weekly meals fetched');
     return mealsMap;
   } catch (error) {
     Logger.error(MODULE, 'Error fetching meals', error.message);
     console.error('Error fetching meals:', error);
     // Fallback to local cache
-    const raw = await AsyncStorage.getItem(MEALS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return (await safeGetCache(MEALS_KEY)) ?? {};
   }
 }
 
@@ -257,7 +282,7 @@ export async function addMealToDay(date, mealType, recipeId, recipeName, ingredi
 
     // Update local cache
     const mealsMap = await getMealsForWeek(date);
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    await safeSetCache(MEALS_KEY, mealsMap);
   } catch (error) {
     console.error('Error adding meal:', error);
     throw error;
@@ -295,7 +320,7 @@ export async function deleteMealFromDay(date, mealId) {
 
     // Update local cache
     const mealsMap = await getMealsForWeek(date);
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    await safeSetCache(MEALS_KEY, mealsMap);
   } catch (error) {
     console.error('Error deleting meal:', error);
     throw error;
@@ -320,7 +345,7 @@ export async function deleteMeal(date, mealType) {
 
     // Update local cache
     const mealsMap = await getMealsForWeek(date);
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    await safeSetCache(MEALS_KEY, mealsMap);
     Logger.info(MODULE, 'Meal deleted successfully', date + ' - ' + mealType);
   } catch (error) {
     Logger.error(MODULE, 'Error deleting meal', error.message);
@@ -356,7 +381,7 @@ export async function clearWeekMeals(startOfWeek) {
     if (error) throw error;
 
     // Update local cache
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify({}));
+    await safeSetCache(MEALS_KEY, {});
     Logger.info(MODULE, 'Week cleared successfully');
   } catch (error) {
     Logger.error(MODULE, 'Error clearing week', error.message);
@@ -415,7 +440,7 @@ export async function duplicateWeek(fromDate, toDate) {
 
     // Update local cache
     const mealsMap = await getMealsForWeek(toDate);
-    await AsyncStorage.setItem(MEALS_KEY, JSON.stringify(mealsMap));
+    await safeSetCache(MEALS_KEY, mealsMap);
     
     Logger.info(MODULE, 'Week duplicated successfully', { count: mealsToInsert.length });
     return { count: mealsToInsert.length };
@@ -497,23 +522,16 @@ export async function saveUserSettings(settings) {
 
 // Pantry (keep local for now)
 export async function getPantry() {
-  const raw = await AsyncStorage.getItem(PANTRY_KEY);
-  return raw ? JSON.parse(raw) : [];
+  return (await safeGetCache(PANTRY_KEY)) ?? [];
 }
 
 export async function savePantry(items) {
-  await AsyncStorage.setItem(PANTRY_KEY, JSON.stringify(items));
+  await safeSetCache(PANTRY_KEY, items);
 }
 
 // Shopping List Modifications
 export async function getShoppingListModifications() {
-  try {
-    const raw = await AsyncStorage.getItem(SHOPPING_LIST_MODIFICATIONS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (error) {
-    Logger.error(MODULE, 'Error getting shopping list modifications', error.message);
-    return {};
-  }
+  return (await safeGetCache(SHOPPING_LIST_MODIFICATIONS_KEY)) ?? {};
 }
 
 export async function modifyShoppingListItem(itemKey, modification) {
@@ -529,7 +547,7 @@ export async function modifyShoppingListItem(itemKey, modification) {
       mods[itemKey] = modification;
     }
     
-    await AsyncStorage.setItem(SHOPPING_LIST_MODIFICATIONS_KEY, JSON.stringify(mods));
+    await safeSetCache(SHOPPING_LIST_MODIFICATIONS_KEY, mods);
     Logger.info(MODULE, 'Shopping list modification saved', itemKey);
   } catch (error) {
     Logger.error(MODULE, 'Error modifying shopping list item', error.message);
@@ -540,7 +558,7 @@ export async function modifyShoppingListItem(itemKey, modification) {
 export async function clearShoppingListModifications() {
   try {
     Logger.info(MODULE, 'Clearing all shopping list modifications');
-    await AsyncStorage.removeItem(SHOPPING_LIST_MODIFICATIONS_KEY);
+    await safeRemoveCache(SHOPPING_LIST_MODIFICATIONS_KEY);
     Logger.info(MODULE, 'Shopping list modifications cleared');
   } catch (error) {
     Logger.error(MODULE, 'Error clearing shopping list modifications', error.message);
@@ -564,7 +582,7 @@ export async function addIngredientsFromRecipe(ingredients) {
       }
     });
     
-    await AsyncStorage.setItem(SHOPPING_LIST_MODIFICATIONS_KEY, JSON.stringify(mods));
+    await safeSetCache(SHOPPING_LIST_MODIFICATIONS_KEY, mods);
     Logger.info(MODULE, 'Ingredients added to shopping list', ingredients.length + ' items');
     return true;
   } catch (error) {

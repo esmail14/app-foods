@@ -4,7 +4,6 @@ import { getMealsForWeek, saveMeal, deleteMeal, getUserSettings, duplicateWeek, 
 import { useIsFocused } from '@react-navigation/native';
 import { supabase } from '../supabase';
 import MealCell from '../components/MealCell';
-import WeeklySummary from '../components/WeeklySummary';
 import { Logger } from '../utils/logger';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -276,12 +275,14 @@ export default function WeekView({ navigation, route }) {
             renderItem={({ item }) => renderDay(item)}
             contentContainerStyle={{ paddingBottom: 80 }}
             ListHeaderComponent={
-              <TouchableOpacity 
-                style={styles.backToDay}
-                onPress={() => setViewMode('day')}
-              >
-                <Text style={styles.backToDayText}>← Volver al día actual</Text>
-              </TouchableOpacity>
+              <View>
+                <TouchableOpacity 
+                  style={styles.backToDay}
+                  onPress={() => setViewMode('day')}
+                >
+                  <Text style={styles.backToDayText}>← Volver al día actual</Text>
+                </TouchableOpacity>
+              </View>
             }
           />
         </View>
